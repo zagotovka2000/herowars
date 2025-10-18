@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Hero Wars Game</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+        .hero-card { border: 1px solid #ccc; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .team-builder { display: flex; flex-wrap: wrap; gap: 10px; }
+        .active { border-color: gold; background-color: #fff9c4; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <h1>🎮 Hero Wars</h1>
+        
+        <div id="user-info"></div>
+        
+        <div class="tabs">
+            <button onclick="showTab('heroes')">Мои Герои</button>
+            <button onclick="showTab('team')">Команда</button>
+            <button onclick="showTab('battle')">Битва</button>
+        </div>
+        
+        <div id="heroes-tab" class="tab-content">
+            <div id="heroes-list"></div>
+        </div>
+        
+        <div id="team-tab" class="tab-content" style="display:none">
+            <div class="team-builder" id="team-builder"></div>
+            <button onclick="saveTeam()">Сохранить команду</button>
+        </div>
+        
+        <div id="battle-tab" class="tab-content" style="display:none">
+            <button onclick="findBattle()">⚔️ Найти противника</button>
+            <div id="battle-result"></div>
+        </div>
+    </div>
+
+    <script>
+        let userData = null;
+        let heroes = [];
+        
+        // Инициализация Telegram Web App
+        Telegram.WebApp.ready();
+        Telegram.WebApp.expand();
+        
+        async function loadGameData() {
+            const tgUser = Telegram.WebApp.initDataUnsafe.user;
+            const response = await fetch('/api/game-data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ telegramId: tgUser.id })
+            });
+            
+            const data = await response.json();
+            userData = data.user;
+            heroes = data.heroes;
+            
+            renderUserInfo();
+            renderHeroes();
+            renderTeamBuilder();
+        }
+        
+        function renderUserInfo() {
+            document.getElementById('user-info').innerHTML = `
+                <p>Уровень: ${userData.level} | Золото: ${userData.gold} | Самоцветы: ${userData.gems}</p>
+            `;
+        }
+        
+        function renderHeroes() {
+            const container = document.getElementById('heroes-list');
+            container.innerHTML = heroes.map(hero => `
+                <div class="hero-card">
+                    <h3>${hero.name} (Ур. ${hero.level})</h3>
+                    <p>❤️ Здоровье: ${hero.health} | ⚔️ Атака: ${hero.attack}</p>
+                    <p>🛡️ Защита: ${hero.defense} | 🏃 Скорость: ${hero.speed}</p>
+                    <button onclick="upgradeHero(${hero.id})">Улучшить (${hero.level * 100} золота)</button>
+                </div>
+            `).join('');
+        }
+        
+        async function upgradeHero(heroId) {
+            const result = await sendDataToBot({
+                action: 'upgrade_hero',
+                heroId: heroId,
+                userId: userData.id
+            });
+            
+            if (result.success) {
+                loadGameData(); // Перезагружаем данные
+            }
+        }
+        
+        function sendDataToBot(data) {
+            return Telegram.WebApp.sendData(JSON.stringify(data));
+        }
+        
+        loadGameData();
+    </script>
+</body>
+</html>

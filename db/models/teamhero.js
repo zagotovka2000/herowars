@@ -1,0 +1,36 @@
+'use strict';
+const { Model } = require('sequelize');
+module.exports = (sequelize, DataTypes) => {
+  class TeamHero extends Model {
+    static associate(models) {
+      // Связи определены через belongsToMany в Team и Hero
+    }
+  }
+  TeamHero.init({
+    teamId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'Teams',
+        key: 'id'
+      }
+    },
+    heroId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'Heros',
+        key: 'id'
+      }
+    },
+    position: {
+      type: DataTypes.INTEGER,
+      comment: 'Position in team (1-5)'
+    }
+  }, {
+    sequelize,
+    modelName: 'TeamHero',
+    tableName: 'TeamHeroes'
+  });
+  return TeamHero;
+};
