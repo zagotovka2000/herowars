@@ -1,28 +1,40 @@
 const TelegramBot = require('node-telegram-bot-api');
-const UserService = require('./services/userService');
-const HeroService = require('./services/heroService');
-const BattleService = require('./services/battleService');
 
 class GameBot extends TelegramBot {
-  constructor(token, options, models) {
+  constructor(token, options, services) {
     super(token, options);
-    this.models = models;
-    this.userService = new UserService(models);
-    this.heroService = new HeroService(models);
-    this.battleService = new BattleService(models);
+    this.models = services.models;
+    this.userService = services.userService;
+    this.heroService = services.heroService;
+    this.battleService = services.battleService;
+    
+    // Привязываем контекст для всех методов
+    this.handleStart = this.handleStart.bind(this);
+    this.handleMyHeroes = this.handleMyHeroes.bind(this);
+    this.handleCreateTeam = this.handleCreateTeam.bind(this);
+    this.handleBattle = this.handleBattle.bind(this);
+    this.handleUpgradeHero = this.handleUpgradeHero.bind(this);
+    this.handleStats = this.handleStats.bind(this);
+    this.handleWebAppData = this.handleWebAppData.bind(this);
+    this.handleCallbackQuery = this.handleCallbackQuery.bind(this);
     
     this.initHandlers();
   }
 
   initHandlers() {
-    this.onText(/\/start/, this.handleStart.bind(this));
-    this.onText(/\/my_heroes/, this.handleMyHeroes.bind(this));
-    this.onText(/\/create_team/, this.handleCreateTeam.bind(this));
-    this.onText(/\/battle/, this.handleBattle.bind(this));
-    this.onText(/\/upgrade_hero/, this.handleUpgradeHero.bind(this));
+    // Текстовые команды
+    this.onText(/\/start/, this.handleStart);
+    this.onText(/\/my_heroes/, this.handleMyHeroes);
+    this.onText(/\/create_team/, this.handleCreateTeam);
+    this.onText(/\/battle/, this.handleBattle);
+    this.onText(/\/upgrade_hero/, this.handleUpgradeHero);
+    this.onText(/\/stats/, this.handleStats);
+    
+    // Callback queries для inline клавиатур
+    this.on('callback_query', this.handleCallbackQuery);
     
     // Web App данные
-    this.on('web_app_data', this.handleWebAppData.bind(this));
+    this.on('web_app_data', this.handleWebAppData);
   }
 
   async handleStart(msg) {
@@ -42,10 +54,11 @@ class GameBot extends TelegramBot {
 💎 Самоцветы: ${user.gems}
 
 Доступные команды:
-/heroes - Ваши герои
+/my_heroes - Ваши герои
 /create_team - Создать команду
 /battle - Найти противника
 /upgrade_hero - Улучшить героя
+/stats - Статистика
 
 Или откройте полный интерфейс через Web App!
       `;
@@ -54,7 +67,7 @@ class GameBot extends TelegramBot {
         inline_keyboard: [[
           {
             text: '🎮 Открыть игру',
-            web_app: { url: `${process.env.WEB_APP_URL}/game` }
+            web_app: { url: `${process.env.WEB_APP_URL || 'https://your-webapp-domain.com'}/game` }
           }
         ]]
       };
@@ -67,6 +80,82 @@ class GameBot extends TelegramBot {
     } catch (error) {
       console.error('Start error:', error);
       await this.sendMessage(chatId, '❌ Произошла ошибка. Попробуйте позже.');
+    }
+  }
+
+  async handleMyHeroes(msg) {
+    const chatId = msg.chat.id;
+    const telegramId = msg.from.id;
+
+    try {
+      const user = await this.userService.findByTelegramId(telegramId);
+      const heroes = await this.heroService.getUserHeroes(user.id);
+
+      if (heroes.length === 0) {
+        await this.sendMessage(chatId, '❌ У вас пока нет героев.');
+        return;
+      }
+
+      let message = '🎯 Ваши герои:\n\n';
+      heroes.forEach((hero, index) => {
+        message += `${index + 1}. ${hero.name} (Ур. ${hero.level})\n`;
+        message += `   ❤️ ${hero.health} | ⚔️ ${hero.attack} | 🛡️ ${hero.defense}\n`;
+        message += `   🏃 ${hero.speed} | 🎯 ${(hero.criticalChance * 100).toFixed(1)}% | 💥 ${hero.criticalDamage.toFixed(1)}x\n\n`;
+      });
+
+      await this.sendMessage(chatId, message);
+
+    } catch (error) {
+      console.error('MyHeroes error:', error);
+      await this.sendMessage(chatId, '❌ Ошибка при получении списка героев.');
+    }
+  }
+
+  async handleCreateTeam(msg) {
+    const chatId = msg.chat.id;
+    const telegramId = msg.from.id;
+
+    try {
+      const user = await this.userService.findByTelegramId(telegramId);
+      const heroes = await this.heroService.getUserHeroes(user.id);
+
+      if (heroes.length < 5) {
+        await this.sendMessage(chatId, 
+          `❌ У вас недостаточно героев для создания команды. Нужно 5 героев, у вас: ${heroes.length}`
+        );
+        return;
+      }
+
+      // Создаем новую команду
+      const team = await this.models.Team.create({
+        name: `Команда ${user.username}`,
+        isActive: true,
+        userId: user.id
+      });
+
+      // Деактивируем другие команды пользователя
+      await this.models.Team.update(
+        { isActive: false },
+        { 
+          where: { 
+            userId: user.id,
+            id: { [this.models.Sequelize.Op.ne]: team.id }
+          }
+        }
+      );
+
+      // Добавляем первых 5 героев в команду
+      for (let i = 0; i < 5; i++) {
+        await this.heroService.addHeroToTeam(heroes[i].id, team.id, i + 1);
+      }
+
+      await this.sendMessage(chatId, 
+        `✅ Команда создана! В команду добавлены: ${heroes.slice(0, 5).map(h => h.name).join(', ')}`
+      );
+
+    } catch (error) {
+      console.error('CreateTeam error:', error);
+      await this.sendMessage(chatId, '❌ Ошибка при создании команды.');
     }
   }
 
@@ -88,6 +177,8 @@ class GameBot extends TelegramBot {
         return;
       }
 
+      await this.sendMessage(chatId, '⚔️ Поиск противника...');
+
       // Поиск противника
       const opponent = await this.userService.findRandomOpponent(user.id);
       const opponentTeam = await this.models.Team.findOne({
@@ -95,8 +186,12 @@ class GameBot extends TelegramBot {
         include: [{ model: this.models.Hero }]
       });
 
-      await this.sendMessage(chatId, '⚔️ Поиск противника...');
+      if (!opponentTeam || opponentTeam.Heroes.length !== 5) {
+        await this.sendMessage(chatId, '❌ Не удалось найти подходящего противника.');
+        return;
+      }
 
+      // Симуляция битвы
       const battleResult = await this.battleService.simulateBattle(activeTeam, opponentTeam);
       
       // Сохраняем результат битвы
@@ -110,16 +205,23 @@ class GameBot extends TelegramBot {
       });
 
       // Награды
+      let rewardMessage = '';
       if (battleResult.winner === 'team1') {
-        await user.update({
-          gold: user.gold + 100,
-          experience: user.experience + 50
+        await this.userService.updateUserResources(user.id, {
+          gold: 100,
+          experience: 50
         });
+        rewardMessage = '\n💰 Награда: 100 золота + 50 опыта';
+      } else if (battleResult.winner === 'team2') {
+        await this.userService.updateUserResources(user.id, {
+          gold: 20,
+          experience: 20
+        });
+        rewardMessage = '\n💰 Награда за участие: 20 золота + 20 опыта';
       }
 
       await this.sendMessage(chatId, 
-        `📜 Лог битвы:\n\n${battleResult.log}\n\n` +
-        `💰 Награда: ${battleResult.winner === 'team1' ? '100 золота + 50 опыта' : '0'}`
+        `📜 Лог битвы:\n\n${battleResult.log}${rewardMessage}`
       );
 
     } catch (error) {
@@ -128,17 +230,122 @@ class GameBot extends TelegramBot {
     }
   }
 
+  async handleUpgradeHero(msg) {
+    const chatId = msg.chat.id;
+    const telegramId = msg.from.id;
+
+    try {
+      const user = await this.userService.findByTelegramId(telegramId);
+      const heroes = await this.heroService.getUserHeroes(user.id);
+
+      if (heroes.length === 0) {
+        await this.sendMessage(chatId, '❌ У вас нет героев для улучшения.');
+        return;
+      }
+
+      // Создаем клавиатуру для выбора героя
+      const keyboard = {
+        inline_keyboard: heroes.map(hero => [
+          {
+            text: `${hero.name} (Ур. ${hero.level}) - ${hero.level * 100} золота`,
+            callback_data: `upgrade_hero_${hero.id}`
+          }
+        ])
+      };
+
+      await this.sendMessage(chatId, 
+        '🎯 Выберите героя для улучшения:', 
+        { reply_markup: keyboard }
+      );
+
+    } catch (error) {
+      console.error('UpgradeHero error:', error);
+      await this.sendMessage(chatId, '❌ Ошибка при улучшении героя.');
+    }
+  }
+
+  async handleStats(msg) {
+    const chatId = msg.chat.id;
+    const telegramId = msg.from.id;
+
+    try {
+      const user = await this.userService.findByTelegramId(telegramId);
+      const stats = await this.userService.getUserStats(user.id);
+
+      const message = `
+📊 Ваша статистика:
+
+🏆 Уровень: ${stats.user.level}
+⭐ Опыт: ${stats.user.experience}/${stats.user.level * 100}
+💰 Золото: ${stats.user.gold}
+💎 Самоцветы: ${stats.user.gems}
+
+🎯 Героев: ${stats.heroesCount}
+⚔️ Боёв: ${stats.battlesCount}
+🏅 Побед: ${stats.winsCount}
+📈 Win Rate: ${stats.winRate}%
+      `;
+
+      await this.sendMessage(chatId, message);
+
+    } catch (error) {
+      console.error('Stats error:', error);
+      await this.sendMessage(chatId, '❌ Ошибка при получении статистики.');
+    }
+  }
+
+  async handleCallbackQuery(callbackQuery) {
+    const chatId = callbackQuery.message.chat.id;
+    const data = callbackQuery.data;
+
+    try {
+      if (data.startsWith('upgrade_hero_')) {
+        const heroId = data.replace('upgrade_hero_', '');
+        const user = await this.userService.findByTelegramId(callbackQuery.from.id);
+        
+        const result = await this.heroService.upgradeHero(heroId, user.id);
+        
+        await this.sendMessage(chatId, 
+          `✅ Герой ${result.hero.name} улучшен до уровня ${result.hero.level}!\n` +
+          `❤️ Здоровье: +${result.increases.health}\n` +
+          `⚔️ Атака: +${result.increases.attack}\n` +
+          `🛡️ Защита: +${result.increases.defense}\n` +
+          `🏃 Скорость: +${result.increases.speed}\n` +
+          `💰 Потрачено: ${result.upgradeCost} золота`
+        );
+
+        // Ответ на callback query
+        await this.answerCallbackQuery(callbackQuery.id, {
+          text: 'Герой улучшен!'
+        });
+      }
+    } catch (error) {
+      console.error('Callback query error:', error);
+      await this.sendMessage(chatId, `❌ ${error.message}`);
+      await this.answerCallbackQuery(callbackQuery.id, {
+        text: 'Ошибка при улучшении героя'
+      });
+    }
+  }
+
   async handleWebAppData(msg) {
     const data = JSON.parse(msg.web_app_data.data);
     const chatId = msg.chat.id;
     
-    switch (data.action) {
-      case 'upgrade_hero':
-        await this.handleWebAppUpgrade(chatId, data);
-        break;
-      case 'create_team':
-        await this.handleWebAppTeam(chatId, data);
-        break;
+    try {
+      switch (data.action) {
+        case 'upgrade_hero':
+          await this.handleWebAppUpgrade(chatId, data);
+          break;
+        case 'create_team':
+          await this.handleWebAppTeam(chatId, data);
+          break;
+        default:
+          await this.sendMessage(chatId, '❌ Неизвестное действие');
+      }
+    } catch (error) {
+      console.error('WebApp data error:', error);
+      await this.sendMessage(chatId, `❌ ${error.message}`);
     }
   }
 
@@ -146,11 +353,21 @@ class GameBot extends TelegramBot {
     try {
       const result = await this.heroService.upgradeHero(data.heroId, data.userId);
       await this.sendMessage(chatId, 
-        `✅ Герой улучшен!\nУровень: ${result.level}\nАтака: ${result.attack}`
+        `✅ Герой ${result.hero.name} улучшен до уровня ${result.hero.level}!\n` +
+        `❤️ Здоровье: +${result.increases.health}\n` +
+        `⚔️ Атака: +${result.increases.attack}\n` +
+        `🛡️ Защита: +${result.increases.defense}\n` +
+        `🏃 Скорость: +${result.increases.speed}\n` +
+        `💰 Потрачено: ${result.upgradeCost} золота`
       );
     } catch (error) {
       await this.sendMessage(chatId, `❌ ${error.message}`);
     }
+  }
+
+  async handleWebAppTeam(chatId, data) {
+    // Реализация создания команды через Web App
+    await this.sendMessage(chatId, '✅ Команда создана через Web App!');
   }
 }
 

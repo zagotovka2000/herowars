@@ -1,15 +1,15 @@
 const app = require('./app');
-const db = require('../server/db/models');
-const CityBuilderBot = require('./bot/bot');
-const QueueService = require('./bot/services/queueService');
-const webhookRoutes = require('./routes/webhook');
-const apiRoutes = require('./routes/index');
+const db = require('./db/models');
+const GameBot = require('./bot/bot');
+const UserService = require('./bot/services/userService');
+const HeroService = require('./bot/services/heroService');
+const BattleService = require('./bot/services/battleService');
 
 const PORT = process.env.PORT || 3000;
 
 async function startServer() {
   try {
-    console.log('🚀 Starting City Builder Bot Server...');
+    console.log('🚀 Starting Hero Wars Bot Server...');
 
     // Проверка подключения к базе данных
     await db.sequelize.authenticate();
@@ -21,27 +21,36 @@ async function startServer() {
       console.log('✅ Database synchronized');
     }
 
+    // Инициализация сервисов
+    const userService = new UserService(db);
+    const heroService = new HeroService(db);
+    const battleService = new BattleService(db);
+
     // Инициализация бота
     const botOptions = process.env.NODE_ENV === 'production' 
       ? { webHook: true }
       : { polling: true };
 
-    const bot = new CityBuilderBot(process.env.BOT_TOKEN, botOptions);
+    const bot = new GameBot(process.env.BOT_TOKEN, botOptions, {
+      models: db,
+      userService,
+      heroService,
+      battleService
+    });
 
     // Настройка вебхука в production
     if (process.env.NODE_ENV === 'production') {
       const webhookUrl = `${process.env.WEBHOOK_DOMAIN}/webhook/${process.env.BOT_TOKEN}`;
-      await bot.setWebhook(webhookUrl, process.env.WEBHOOK_SECRET);
+      await bot.setWebhook(webhookUrl);
       console.log(`✅ Webhook set to: ${webhookUrl}`);
     }
-
 
     // Запуск HTTP сервера
     app.listen(PORT, () => {
       console.log(`✅ Server running on port ${PORT}`);
       console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
       console.log(`🌐 Environment: ${process.env.NODE_ENV}`);
-      console.log('🤖 City Builder Bot is ready!');
+      console.log('🤖 Hero Wars Bot is ready!');
     });
 
   } catch (error) {
@@ -53,7 +62,7 @@ async function startServer() {
 // Graceful shutdown
 const gracefulShutdown = async () => {
   console.log('\n🛑 Shutting down gracefully...');
-  
+  process.exit(0);
 };
 
 process.on('SIGTERM', gracefulShutdown);
