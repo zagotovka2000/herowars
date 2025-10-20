@@ -1,4 +1,6 @@
 const app = require('./app');
+const express = require('express');
+const path = require('path');
 const db = require('./db/models');
 const GameBot = require('./bot/bot');
 const UserService = require('./bot/services/userService');
@@ -26,6 +28,12 @@ async function startServer() {
     const heroService = new HeroService(db);
     const battleService = new BattleService(db);
 
+    app.use(express.static(path.join(__dirname, 'webapp')));
+    const apiRoutes = require('./routes/api')(db);
+app.use('/api', apiRoutes);
+app.get('/game', (req, res) => {
+   res.sendFile(path.join(__dirname, 'webapp', 'game.html'));
+ });
     // Инициализация бота
     const botOptions = process.env.NODE_ENV === 'production' 
       ? { webHook: true }

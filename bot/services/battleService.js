@@ -5,7 +5,7 @@ class BattleService {
     this.models = models;
   }
 
-  async createBattle(player1Id, player2Id) {
+  async createBattle(player1Id, player2Id) { // создает запись о битве.
     return await this.models.Battle.create({
       player1Id,
       player2Id,

@@ -5,7 +5,7 @@ class UserService {
     this.models = models;
   }
 
-  async findOrCreate(telegramId, username) {
+  async findOrCreate(telegramId, username) { //находит или создает пользователя по telegramId
     try {
       const [user, created] = await this.models.User.findOrCreate({
         where: { telegramId },
@@ -32,7 +32,7 @@ class UserService {
     }
   }
 
-  async findByTelegramId(telegramId) {
+  async findByTelegramId(telegramId) { //находит пользователя по telegramId
     try {
       const user = await this.models.User.findOne({
         where: { telegramId },
@@ -111,7 +111,7 @@ class UserService {
     }
   }
 
-  async createBotUser() {
+  async createBotUser() { //создают бота и его команду.
     try {
       const botUser = await this.models.User.create({
         telegramId: Math.floor(Math.random() * 1000000) * -1, // Отрицательные ID для ботов
@@ -227,7 +227,7 @@ class UserService {
     }
   }
 
-  async createStarterHeroes(userId) {
+  async createStarterHeroes(userId) {//создает стартовых героев для нового пользователя.
     try {
       const starterHeroes = [
         {
@@ -279,7 +279,7 @@ class UserService {
     }
   }
 
-  async updateUserResources(userId, resources) {
+  async updateUserResources(userId, resources) {//обновляет золото, изумруды, опыт и уровень пользователя.
     try {
       const user = await this.findById(userId);
       
@@ -309,7 +309,7 @@ class UserService {
     }
   }
 
-  async getUserStats(userId) {
+  async getUserStats(userId) {//возвращает статистику пользователя (количество героев, битв, побед, винрейт).
     try {
       const user = await this.findById(userId);
       const heroesCount = await this.models.Hero.count({ where: { userId } });

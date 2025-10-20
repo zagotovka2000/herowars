@@ -1,10 +1,10 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const helmet = require('helmet');
-const compression = require('compression');
+const helmet = require('helmet'); 
+const compression = require('compression');//для сжатия ответов.
 const morgan = require('morgan');
-const rateLimit = require('express-rate-limit');
+const rateLimit = require('express-rate-limit');//для ограничения запросов
 
 const app = express();
 

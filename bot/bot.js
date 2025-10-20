@@ -3,20 +3,20 @@ const TelegramBot = require('node-telegram-bot-api');
 class GameBot extends TelegramBot {
   constructor(token, options, services) {
     super(token, options);
-    this.models = services.models;
-    this.userService = services.userService;
-    this.heroService = services.heroService;
-    this.battleService = services.battleService;
+    this.models = services.models;// Доступ к БД
+    this.userService = services.userService;// Работа с пользователями
+    this.heroService = services.heroService;// Управление героями
+    this.battleService = services.battleService;// Логика битв
     
     // Привязываем контекст для всех методов
-    this.handleStart = this.handleStart.bind(this);
-    this.handleMyHeroes = this.handleMyHeroes.bind(this);
-    this.handleCreateTeam = this.handleCreateTeam.bind(this);
-    this.handleBattle = this.handleBattle.bind(this);
-    this.handleUpgradeHero = this.handleUpgradeHero.bind(this);
+    this.handleStart = this.handleStart.bind(this);//приветственное сообщение, создание пользователя, отправка кнопки для Web App.
+    this.handleMyHeroes = this.handleMyHeroes.bind(this);//показывает список героев пользователя
+    this.handleCreateTeam = this.handleCreateTeam.bind(this);//5 героев
+    this.handleBattle = this.handleBattle.bind(this);//ищет противника, проводит битву, сохраняет результат и выдает награды
+    this.handleUpgradeHero = this.handleUpgradeHero.bind(this);//показывает inline клавиатуру для выбора героя для улучшения
     this.handleStats = this.handleStats.bind(this);
-    this.handleWebAppData = this.handleWebAppData.bind(this);
-    this.handleCallbackQuery = this.handleCallbackQuery.bind(this);
+    this.handleWebAppData = this.handleWebAppData.bind(this);//обрабатывает данные, пришедшие из Web App
+    this.handleCallbackQuery = this.handleCallbackQuery.bind(this);//обрабатывает нажатия на inline кнопки (например, улучшение героя).
     
     this.initHandlers();
   }
@@ -51,7 +51,7 @@ class GameBot extends TelegramBot {
 Ваш аккаунт:
 🏆 Уровень: ${user.level}
 💰 Золото: ${user.gold}
-💎 Самоцветы: ${user.gems}
+💎 Изумруды: ${user.gems}
 
 Доступные команды:
 /my_heroes - Ваши герои
@@ -64,13 +64,16 @@ class GameBot extends TelegramBot {
       `;
 
       const keyboard = {
-        inline_keyboard: [[
-          {
-            text: '🎮 Открыть игру',
-            web_app: { url: `${process.env.WEB_APP_URL || 'https://your-webapp-domain.com'}/game` }
-          }
-        ]]
-      };
+         inline_keyboard: [[
+           {
+             text: '🎮 Открыть игровой интерфейс',
+             web_app: { 
+               url: process.env.WEB_APP_URL || `https://herowars-umber.vercel.app/game` 
+             }
+           }
+         ]]
+       };
+       
 
       await this.sendMessage(chatId, welcomeMessage, {
         reply_markup: keyboard,

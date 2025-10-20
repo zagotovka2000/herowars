@@ -5,7 +5,7 @@ class HeroService {
     this.models = models;
   }
 
-  async getUserHeroes(userId) {
+  async getUserHeroes(userId) { // возвращает героев пользователя
     try {
       const heroes = await this.models.Hero.findAll({
         where: { userId },
@@ -19,7 +19,7 @@ class HeroService {
     }
   }
 
-  async getHeroById(heroId) {
+  async getHeroById(heroId) { //возвращает героя по id
     try {
       const hero = await this.models.Hero.findByPk(heroId, {
         include: [{ model: this.models.User }]
@@ -36,7 +36,7 @@ class HeroService {
     }
   }
 
-  async upgradeHero(heroId, userId) {
+  async upgradeHero(heroId, userId) {//улучшает героя (увеличивает характеристики, списывает золото).
     try {
       const hero = await this.getHeroById(heroId);
       const user = await this.models.User.findByPk(userId);
@@ -133,7 +133,7 @@ class HeroService {
     }
   }
 
-  getBaseStatsByClass(heroClass) {
+  getBaseStatsByClass(heroClass) { //возвращает базовые характеристики для класса героя
     const baseStats = {
       warrior: {
         health: 100,
@@ -240,7 +240,7 @@ class HeroService {
     }
   }
 
-  async getTeamHeroes(teamId) {
+  async getTeamHeroes(teamId) { //возвращает героев команды.
     try {
       const teamHeroes = await this.models.TeamHero.findAll({
         where: { teamId },
