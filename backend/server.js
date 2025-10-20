@@ -1,4 +1,4 @@
-const app = require('./app');
+const app = require('../app');
 const express = require('express');
 const path = require('path');
 const db = require('./db/models');
