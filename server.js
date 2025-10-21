@@ -1,14 +1,14 @@
 require('dotenv').config();
-const express = require('express');
-const path = require('path');
 const app = require('./app');
 const db = require('./db/models');
-const GameBot = require('./bot/bot');
-const BattleService = require('./bot/services/battleService');
-const HeroService = require('./bot/services/heroService');
-const UserService = require('./bot/services/userService');
+
+const PORT = process.env.PORT || 3000;
 
 // Инициализация сервисов
+const UserService = require('./bot/services/userService');
+const HeroService = require('./bot/services/heroService');
+const BattleService = require('./bot/services/battleService');
+
 const services = {
   models: db,
   userService: new UserService(db),
@@ -16,74 +16,54 @@ const services = {
   battleService: new BattleService(db)
 };
 
-// Middleware
-app.use(express.json());
-
-// CORS для фронтенда на Vercel
-app.use((req, res, next) => {
-  const allowedOrigins = [
-    'https://your-frontend-app.vercel.app',
-    'https://herowars-umber.vercel.app'
-  ];
-  
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
+// Инициализация бота
+let bot = null;
+if (process.env.BOT_TOKEN) {
+  const GameBot = require('./bot/bot');
+  try {
+    bot = new GameBot(process.env.BOT_TOKEN, { 
+      polling: true 
+    }, services);
+    console.log('🤖 Telegram Bot initialized');
+  } catch (error) {
+    console.error('❌ Bot init failed:', error.message);
   }
-  
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
-  
-  next();
-});
+}
 
-// API маршруты
-const apiRoutes = require('./routes/api')(db, services);
+// API Routes
+const apiRoutes = require('./routes/api')(db);
 app.use('/api', apiRoutes);
 
-// Health check для Railway
+// Health check
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'OK', 
-    timestamp: new Date().toISOString(),
-    service: 'Hero Wars Backend'
+    bot: !!bot,
+    environment: process.env.NODE_ENV 
   });
 });
 
-// Корневой маршрут
+// Root
 app.get('/', (req, res) => {
   res.json({ 
-    message: 'Hero Wars Backend API',
-    endpoints: {
-      health: '/health',
-      api: '/api',
-      webapp: 'https://your-frontend-app.vercel.app/game'
-    }
+    message: 'Hero Wars Bot API',
+    health: '/health',
+    api: '/api'
   });
 });
 
-// Запуск бота (только если есть BOT_TOKEN)
-let bot;
-if (process.env.BOT_TOKEN) {
-  bot = new GameBot(process.env.BOT_TOKEN, { polling: true }, services);
-  console.log('🤖 Telegram Bot started with polling');
-  
-  // Обновляем Web App URL в боте
-  bot.setWebAppUrl(process.env.FRONTEND_URL || 'https://your-frontend-app.vercel.app/game');
-} else {
-  console.log('⚠️ BOT_TOKEN not found - running in API mode only');
-}
+// Запуск сервера
+const startServer = async () => {
+  try {
+    console.log('🚀 Starting server...');
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`✅ Server running on port ${PORT}`);
+      console.log(`🏥 Health: http://0.0.0.0:${PORT}/health`);
+    });
+  } catch (error) {
+    console.error('❌ Server start failed:', error);
+    process.exit(1);
+  }
+};
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Backend server running on port ${PORT}`);
-  console.log(`🔗 Health check: http://localhost:${PORT}/health`);
-  console.log(`🎮 Web App Frontend: ${process.env.FRONTEND_URL}`);
-});
-
-module.exports = app;
+startServer();

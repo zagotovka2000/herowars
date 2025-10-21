@@ -70,7 +70,7 @@ class GameBot extends TelegramBot {
            {
              text: '🎮 Открыть игровой интерфейс',
              web_app: { 
-               url: process.env.FRONTEND_URL || `https://herowars-umber.vercel.app/game` 
+               url: process.env.FRONTEND_URL || `https://frontend-herowars.vercel.app/game` 
              }
            }
          ]]

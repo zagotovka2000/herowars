@@ -1,0 +1,11 @@
+{
+   "name": "herowars-bot",
+   "version": "1.0.0",
+   "scripts": {
+     "start": "sh .alwaysdata/start.sh",
+     "install-deps": "npm install --production"
+   },
+   "engines": {
+     "node": ">=16.0.0"
+   }
+ }
