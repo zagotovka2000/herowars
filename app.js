@@ -17,14 +17,7 @@ const limiter = rateLimit({
   }
 });
 
-app.use(cors({
-   origin: [
-     'https://your-frontend-domain.vercel.app', // Замените на ваш фронтенд URL
-     'http://localhost:3000', // Для локальной разработки
-     process.env.FRONTEND_URL // Из переменных окружения
-   ].filter(Boolean),
-   credentials: true
- }));
+
 
 app.use(helmet());
 app.use(compression());
