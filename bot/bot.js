@@ -36,7 +36,9 @@ class GameBot extends TelegramBot {
     // Web App данные
     this.on('web_app_data', this.handleWebAppData);
   }
-
+  setWebAppUrl(url) {
+   this.webAppUrl = url;
+ }
   async handleStart(msg) {
     const chatId = msg.chat.id;
     const telegramId = msg.from.id;
@@ -68,7 +70,7 @@ class GameBot extends TelegramBot {
            {
              text: '🎮 Открыть игровой интерфейс',
              web_app: { 
-               url: process.env.WEB_APP_URL || `https://herowars-umber.vercel.app/game` 
+               url: process.env.FRONTEND_URL || `https://herowars-umber.vercel.app/game` 
              }
            }
          ]]
@@ -270,7 +272,14 @@ class GameBot extends TelegramBot {
   async handleStats(msg) {
     const chatId = msg.chat.id;
     const telegramId = msg.from.id;
-
+    const keyboard = {
+      inline_keyboard: [[
+        {
+          text: '🎮 Открыть игровой интерфейс',
+          web_app: { url: this.webAppUrl || process.env.FRONTEND_URL }
+        }
+      ]]
+    };
     try {
       const user = await this.userService.findByTelegramId(telegramId);
       const stats = await this.userService.getUserStats(user.id);

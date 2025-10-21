@@ -1,0 +1,12 @@
+[deploy]
+buildCommand = "npm install --omit=dev"
+startCommand = "npm start"
+
+[build]
+builder = "nixpacks"
+
+[[services]]
+name = "web"
+[[services.ports]]
+port = 3000
+protocol = "tcp"
