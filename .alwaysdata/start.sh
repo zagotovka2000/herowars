@@ -5,7 +5,7 @@ export NODE_ENV=production
 export PORT=$PORT
 
 # Переходим в директорию с проектом
-cd ~/www/
+cd www/herowars
 
 # Устанавливаем зависимости если нужно
 if [ ! -d "node_modules" ]; then

@@ -2,7 +2,6 @@ require('dotenv').config();
 const app = require('./app');
 const db = require('./db/models');
 
-const PORT = process.env.PORT || 3000;
 
 // Инициализация сервисов
 const UserService = require('./bot/services/userService');
