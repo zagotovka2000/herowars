@@ -2,18 +2,20 @@
 
 # Активируем Node.js окружение
 export NODE_ENV=production
-export PORT=$PORT
 
 # Переходим в директорию с проектом
-cd www/herowars
+cd $HOME/www/herowars
 
 # Устанавливаем зависимости если нужно
 if [ ! -d "node_modules" ]; then
+    echo "Installing dependencies..."
     npm install --production
 fi
 
 # Запускаем миграции базы данных
+echo "Running database migrations..."
 node migrate.js
 
 # Запускаем приложение
+echo "Starting application..."
 node server.js

@@ -16,7 +16,11 @@ const limiter = rateLimit({
     error: 'Too many requests from this IP, please try again later.'
   }
 });
-
+// app.js - ДОБАВЬТЕ после rate limiting
+app.use(cors({
+   origin: process.env.FRONTEND_URL || "https://frontend-herowars.vercel.app",
+   credentials: true
+ }));
 
 
 app.use(helmet());
