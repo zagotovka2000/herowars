@@ -4,7 +4,7 @@
 export NODE_ENV=production
 
 # Переходим в директорию с проектом
-cd $HOME/www/herowars
+cd $HOME/herowars/www
 
 # Устанавливаем зависимости если нужно
 if [ ! -d "node_modules" ]; then
