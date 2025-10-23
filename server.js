@@ -1,13 +1,10 @@
 require('dotenv').config();
 const app = require('./app');
 const db = require('./db/models');
+const express = require('express');
 
 const PORT = process.env.PORT || 3000;
-console.log('Environment check:');
-console.log('- PORT:', process.env.PORT);
-console.log('- NODE_ENV:', process.env.NODE_ENV);
-console.log('- BOT_TOKEN:', process.env.BOT_TOKEN ? 'SET' : 'NOT SET');
-console.log('- DATABASE_URL:', process.env.DATABASE_URL ? 'SET' : 'NOT SET');
+
 // Инициализация сервисов
 const UserService = require('./bot/services/userService');
 const HeroService = require('./bot/services/heroService');
@@ -26,14 +23,13 @@ if (process.env.BOT_TOKEN) {
   const GameBot = require('./bot/bot');
   try {
     bot = new GameBot(process.env.BOT_TOKEN, { 
-      polling: true 
+      polling: false 
     }, services);
     
   
     bot.setWebAppUrl(process.env.FRONTEND_URL);
     
-    console.log('🤖 Telegram Bot initialized');
-  } catch (error) {
+    console.log('🤖 Telegram Bot initialized (webhook mode)');  } catch (error) {
     console.error('❌ Bot init failed:', error.message);
   }
 }
@@ -42,12 +38,28 @@ if (process.env.BOT_TOKEN) {
 const apiRoutes = require('./routes/api')(db);
 app.use('/api', apiRoutes);
 
+// Webhook endpoint для Telegram
+if (bot) {
+   // Создаем webhook endpoint
+   const webhookPath = `/webhook/${process.env.BOT_TOKEN}`;
+   
+   app.use(express.json()); // Для парсинга JSON от Telegram
+   
+   app.post(webhookPath, (req, res) => {
+     bot.processUpdate(req.body);
+     res.sendStatus(200);
+   });
+   
+   console.log(`🌐 Webhook configured at: ${webhookPath}`);
+ }
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'OK', 
     bot: !!bot,
-    environment: process.env.NODE_ENV 
+    environment: process.env.NODE_ENV,
+    mode: 'webhook'
   });
 });
 
@@ -56,7 +68,8 @@ app.get('/', (req, res) => {
   res.json({ 
     message: 'Hero Wars Bot API',
     health: '/health',
-    api: '/api'
+    api: '/api',
+    mode: 'webhook'
   });
 });
 
@@ -65,6 +78,27 @@ app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
   res.status(500).json({ error: 'Internal server error' });
 });
+
+// Функция для установки webhook
+async function setWebhook() {
+   if (!bot) return;
+   
+   try {
+     const webhookUrl = `https://${process.env.WEBHOOK_DOMAIN || 'herowars.alwaysdata.net'}/webhook/${process.env.BOT_TOKEN}`;
+     
+     // Удаляем старый webhook если есть
+     await bot.deleteWebHook();
+     
+     // Устанавливаем новый webhook
+     const result = await bot.setWebHook(webhookUrl);
+     
+     console.log('✅ Webhook установлен:', webhookUrl);
+     console.log('📊 Webhook info:', result);
+     
+   } catch (error) {
+     console.error('❌ Webhook setup failed:', error.message);
+   }
+ }
 
 // Запуск сервера
 const startServer = async () => {
