@@ -1,5 +1,5 @@
+require('dotenv').config();
 const db = require('./db/models');
-
 async function migrate() {
   try {
     console.log('🔄 Starting database migration...');
