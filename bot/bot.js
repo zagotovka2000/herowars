@@ -8,6 +8,7 @@ class GameBot extends TelegramBot {
     this.userService = services.userService;
     this.heroService = services.heroService;
     this.battleService = services.battleService;
+    this.webAppService = services.webAppService;
     
     // Автоматическая привязка всех методов
     this.bindAllMethods();
@@ -36,8 +37,11 @@ class GameBot extends TelegramBot {
     this.onText(/\/manage_team/, this.handleManageTeam);
     this.onText(/\/test/, this.handleTest);
     this.onText(/\/fix_gold/, this.handleFixGold);
-
     
+    // НОВЫЕ Web App команды
+    this.onText(/\/team/, this.handleWebAppTeam);
+    this.onText(/\/webapp_battle/, this.handleWebAppBattle);
+
     // Callback queries и другие события
     this.on('callback_query', this.handleCallbackQuery);
     this.on('web_app_data', this.handleWebAppData);
@@ -56,37 +60,117 @@ class GameBot extends TelegramBot {
       let user = await this.userService.findOrCreate(telegramId, username);
       
       const welcomeMessage = `
-🎮 Добро пожаловать в Hero Wars Bot (LOCAL DEV)!
+🎮 Добро пожаловать в Hero Wars Bot!
 
-✅ Режим: Локальная разработка
-🔄 Изменения применяются мгновенно
-🔧 Polling режим активен
-🚫 Web App отключен (только HTTP)
+✅ Режим: Web App включен
+🎯 Бои теперь в визуальном режиме
+👥 Управление командой через Web интерфейс
 
 Ваш аккаунт:
 🏆 Уровень: ${user.level}
 💰 Золото: ${user.gold}
 💎 Изумруды: ${user.gems}
 
-Команды для тестирования:
+Основные команды:
 /start - это сообщение
-/test - тестовая команда
+/team - управление командой (Web App)
+/battle - начать битву (Web App)
 /my_heroes - список героев
 /stats - статистика
 /upgrade_hero - улучшить героя
 /buy_hero - купить нового героя
-/manage_team - управление командой
-/create_team - создать команду
-/battle - начать битву
+
+⚡ Новое: Все битвы теперь происходят в Web App с визуальным отображением!
       `;
 
       await this.sendMessage(chatId, welcomeMessage, {
-        parse_mode: 'HTML'
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: '👥 Управление командой',
+                web_app: { url: `${process.env.WEBHOOK_DOMAIN}/webapp/team?telegramId=${telegramId}` }
+              }
+            ],
+            [
+              {
+                text: '⚔️ Начать битву',
+                web_app: { url: `${process.env.WEBHOOK_DOMAIN}/webapp/battle?telegramId=${telegramId}` }
+              }
+            ]
+          ]
+        }
       });
 
     } catch (error) {
       console.error('Start error:', error);
       await this.sendMessage(chatId, '❌ Произошла ошибка. Попробуйте позже.');
+    }
+  }
+
+  // НОВЫЙ МЕТОД: Web App управление командой
+  async handleWebAppTeam(msg) {
+    const chatId = msg.chat.id;
+    const telegramId = msg.from.id;
+    
+    try {
+      const webAppUrl = `${process.env.WEBHOOK_DOMAIN}/webapp/team?telegramId=${telegramId}`;
+      
+      await this.sendMessage(chatId, '👥 Управление командой в Web App', {
+        reply_markup: {
+          inline_keyboard: [[
+            {
+              text: '🎯 Открыть управление командой',
+              web_app: { url: webAppUrl }
+            }
+          ]]
+        }
+      });
+    } catch (error) {
+      console.error('WebApp team error:', error);
+      await this.sendMessage(chatId, '❌ Ошибка открытия Web App');
+    }
+  }
+
+  // НОВЫЙ МЕТОД: Web App битва
+  async handleWebAppBattle(msg) {
+    const chatId = msg.chat.id;
+    const telegramId = msg.from.id;
+    
+    try {
+      const user = await this.userService.findByTelegramId(telegramId);
+      const activeTeam = await this.models.Team.findOne({
+        where: { userId: user.id, isActive: true },
+        include: [{ model: this.models.Hero }]
+      });
+
+      if (!activeTeam || activeTeam.Heroes.length !== 5) {
+        await this.sendMessage(chatId, 
+          '❌ Для начала боя нужна полная команда из 5 героев!\n\n' +
+          'Соберите команду через Web App:\n' +
+          '👥 /team - управление командой\n' +
+          '🛒 /buy_hero - купить героев\n' +
+          '🎯 /my_heroes - посмотреть героев'
+        );
+        return;
+      }
+
+      const webAppUrl = `${process.env.WEBHOOK_DOMAIN}/webapp/battle?telegramId=${telegramId}`;
+      
+      await this.sendMessage(chatId, '⚔️ Готовы к битве?', {
+        reply_markup: {
+          inline_keyboard: [[
+            {
+              text: '⚔️ В БОЙ!',
+              web_app: { url: webAppUrl }
+            }
+          ]]
+        }
+      });
+    } catch (error) {
+      console.error('WebApp battle error:', error);
+      await this.sendMessage(chatId, '❌ Ошибка начала боя');
     }
   }
 
@@ -97,8 +181,8 @@ class GameBot extends TelegramBot {
       await this.sendMessage(chatId, 
         `✅ Тестовая команда работает!\n` +
         `🕒 Время: ${new Date().toLocaleString()}\n` +
-        `🔧 Режим: Polling (разработка)\n` +
-        `🚫 Web App: отключен (HTTP не поддерживается)\n` +
+        `🔧 Режим: Web App включен\n` +
+        `🌐 Web App: доступен по адресу ${process.env.WEBHOOK_DOMAIN}\n` +
         `💡 Все изменения кода применяются мгновенно!`
       );
     } catch (error) {
@@ -131,9 +215,18 @@ class GameBot extends TelegramBot {
       });
 
       message += `\n💡 Всего героев: ${heroes.length}\n`;
-      message += `💡 Используйте /manage_team чтобы управлять командой`;
+      message += `💡 Используйте /team для управления командой через Web App`;
 
-      await this.sendMessage(chatId, message);
+      await this.sendMessage(chatId, message, {
+        reply_markup: {
+          inline_keyboard: [[
+            {
+              text: '👥 Управление командой в Web App',
+              web_app: { url: `${process.env.WEBHOOK_DOMAIN}/webapp/team?telegramId=${telegramId}` }
+            }
+          ]]
+        }
+      });
 
     } catch (error) {
       console.error('MyHeroes error:', error);
@@ -158,7 +251,7 @@ class GameBot extends TelegramBot {
           `Используйте команды:\n` +
           `🛒 /buy_hero - купить нового героя (500 золота)\n` +
           `🎯 /my_heroes - посмотреть ваших героев\n` +
-          `👥 /manage_team - управление командой`
+          `👥 /team - управление командой через Web App`
         );
         return;
       }
@@ -187,7 +280,17 @@ class GameBot extends TelegramBot {
         `✅ Команда создана!\n\n` +
         `В команду добавлены:\n` +
         `${heroes.slice(0, 5).map((h, i) => `${i + 1}. ${h.name} (${h.heroClass})`).join('\n')}\n\n` +
-        `Используйте /manage_team для настройки состава команды`
+        `Используйте /team для настройки состава команды через Web App`,
+        {
+          reply_markup: {
+            inline_keyboard: [[
+              {
+                text: '🎯 Настроить команду в Web App',
+                web_app: { url: `${process.env.WEBHOOK_DOMAIN}/webapp/team?telegramId=${telegramId}` }
+              }
+            ]]
+          }
+        }
       );
 
     } catch (error) {
@@ -209,52 +312,32 @@ class GameBot extends TelegramBot {
 
       if (!activeTeam || activeTeam.Heroes.length !== 5) {
         await this.sendMessage(chatId, 
-          '❌ У вас нет активной команды из 5 героев. Используйте /create_team'
+          '❌ Для начала боя нужна полная команда из 5 героев!\n\n' +
+          'Соберите команду через Web App:\n' +
+          '👥 /team - управление командой\n' +
+          '🛒 /buy_hero - купить героев'
         );
         return;
       }
 
-      await this.sendMessage(chatId, '⚔️ Поиск противника...');
-
-      const opponent = await this.userService.findRandomOpponent(user.id);
-      const opponentTeam = await this.models.Team.findOne({
-        where: { userId: opponent.id, isActive: true },
-        include: [{ model: this.models.Hero }]
-      });
-
-      if (!opponentTeam || opponentTeam.Heroes.length !== 5) {
-        await this.sendMessage(chatId, '❌ Не удалось найти подходящего противника.');
-        return;
-      }
-
-      const battleResult = await this.battleService.simulateBattle(activeTeam, opponentTeam);
+      // Вместо старой битвы перенаправляем в Web App
+      const webAppUrl = `${process.env.WEBHOOK_DOMAIN}/webapp/battle?telegramId=${telegramId}`;
       
-      const battle = await this.models.Battle.create({
-        player1Id: user.id,
-        player2Id: opponent.id,
-        winnerId: battleResult.winner === 'team1' ? user.id : 
-                  battleResult.winner === 'team2' ? opponent.id : null,
-        battleLog: battleResult.log,
-        status: 'completed'
-      });
-
-      let rewardMessage = '';
-      if (battleResult.winner === 'team1') {
-        await this.userService.updateUserResources(user.id, {
-          gold: 10000,
-          experience: 50
-        });
-        rewardMessage = '\n💰 Награда: 100 золота + 50 опыта';
-      } else if (battleResult.winner === 'team2') {
-        await this.userService.updateUserResources(user.id, {
-          gold: 2000,
-          experience: 20
-        });
-        rewardMessage = '\n💰 Награда за участие: 20 золота + 20 опыта';
-      }
-
       await this.sendMessage(chatId, 
-        `📜 Лог битвы:\n\n${battleResult.log}${rewardMessage}`
+        `⚔️ Битва теперь происходит в Web App!\n\n` +
+        `Ваша команда готова:\n` +
+        `${activeTeam.Heroes.map((h, i) => `${i + 1}. ${h.name} (${h.heroClass})`).join('\n')}\n\n` +
+        `Нажмите кнопку ниже чтобы начать битву с визуальным отображением!`,
+        {
+          reply_markup: {
+            inline_keyboard: [[
+              {
+                text: '⚔️ Начать битву в Web App',
+                web_app: { url: webAppUrl }
+              }
+            ]]
+          }
+        }
       );
 
     } catch (error) {
@@ -305,7 +388,7 @@ class GameBot extends TelegramBot {
       const stats = await this.userService.getUserStats(user.id);
 
       const message = `
-📊 Ваша статистика (DEV MODE):
+📊 Ваша статистика:
 
 🏆 Уровень: ${stats.user.level}
 ⭐ Опыт: ${stats.user.experience}/${stats.user.level * 100}
@@ -317,10 +400,27 @@ class GameBot extends TelegramBot {
 🏅 Побед: ${stats.winsCount}
 📈 Win Rate: ${stats.winRate}%
 
-💡 Web App временно отключен в режиме разработки
+💡 Используйте Web App для управления командой и битв!
       `;
 
-      await this.sendMessage(chatId, message);
+      await this.sendMessage(chatId, message, {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: '👥 Управление командой',
+                web_app: { url: `${process.env.WEBHOOK_DOMAIN}/webapp/team?telegramId=${telegramId}` }
+              }
+            ],
+            [
+              {
+                text: '⚔️ Начать битву',
+                web_app: { url: `${process.env.WEBHOOK_DOMAIN}/webapp/battle?telegramId=${telegramId}` }
+              }
+            ]
+          ]
+        }
+      });
 
     } catch (error) {
       console.error('Stats error:', error);
@@ -346,7 +446,17 @@ class GameBot extends TelegramBot {
         `🏃 Скорость: ${result.hero.speed}\n\n` +
         `💰 Потрачено: ${result.cost} золота\n` +
         `💳 Остаток золота: ${result.newGold}\n\n` +
-        `Используйте /manage_team чтобы добавить героя в команду`
+        `Используйте /team чтобы добавить героя в команду через Web App`,
+        {
+          reply_markup: {
+            inline_keyboard: [[
+              {
+                text: '👥 Добавить в команду (Web App)',
+                web_app: { url: `${process.env.WEBHOOK_DOMAIN}/webapp/team?telegramId=${telegramId}` }
+              }
+            ]]
+          }
+        }
       );
 
     } catch (error) {
@@ -360,56 +470,29 @@ class GameBot extends TelegramBot {
     const telegramId = msg.from.id;
 
     try {
-      // Проверяем доступность сервисов
-      if (!this.userService || !this.userService.getTeamManagementInfo) {
-        throw new Error('Сервис пользователя недоступен');
-      }
-
-      const teamInfo = await this.userService.getTeamManagementInfo(telegramId);
+      // Перенаправляем в Web App версию
+      const webAppUrl = `${process.env.WEBHOOK_DOMAIN}/webapp/team?telegramId=${telegramId}`;
       
-      let message = `👥 Управление командой:\n\n`;
-      
-      if (teamInfo.activeTeam) {
-        message += `🏷️ Название команды: ${teamInfo.activeTeam.name}\n`;
-        message += `📍 Слотов занято: ${teamInfo.teamHeroes.length}/5\n\n`;
-        
-        if (teamInfo.teamHeroes.length > 0) {
-          message += `🔷 Герои в команде:\n`;
-          teamInfo.teamHeroes.forEach(hero => {
-            message += `${hero.TeamHero.position}. ${hero.name} (ур. ${hero.level})\n`;
-          });
-        } else {
-          message += `❌ В команде нет героев\n`;
+      await this.sendMessage(chatId, 
+        `👥 Управление командой теперь в Web App!\n\n` +
+        `В Web App вы можете:\n` +
+        `• 📋 Видеть всех своих героев\n` +
+        `• 🎯 Выбирать героев для команды\n` +
+        `• 🔄 Менять состав одним кликом\n` +
+        `• ✅ Контролировать дублирование героев\n` +
+        `• ⚔️ Начать битву после сбора команды\n\n` +
+        `Нажмите кнопку ниже чтобы открыть управление командой:`,
+        {
+          reply_markup: {
+            inline_keyboard: [[
+              {
+                text: '🎯 Открыть управление командой',
+                web_app: { url: webAppUrl }
+              }
+            ]]
+          }
         }
-      } else {
-        message += `❌ У вас нет активной команды\n`;
-      }
-      
-      message += `\n🎯 Доступные герои (${teamInfo.allHeroes.length}):\n`;
-      teamInfo.allHeroes.forEach((hero, index) => {
-        const inTeam = teamInfo.teamHeroes.some(th => th.id === hero.id);
-        const status = inTeam ? '✅ В команде' : '❌ Не в команде';
-        message += `${index + 1}. ${hero.name} (${hero.heroClass}) - ур. ${hero.level} - ${status}\n`;
-      });
-
-      const keyboard = {
-        inline_keyboard: [
-          [
-            { text: '🛒 Купить героя (500 золота)', callback_data: 'buy_hero' }
-          ],
-          [
-            { text: '➕ Добавить героя в команду', callback_data: 'add_hero_menu' },
-            { text: '➖ Убрать из команды', callback_data: 'remove_hero_menu' }
-          ],
-          [
-            { text: '🔄 Обновить', callback_data: 'refresh_team' }
-          ]
-        ]
-      };
-
-      await this.sendMessage(chatId, message, {
-        reply_markup: keyboard
-      });
+      );
 
     } catch (error) {
       console.error('ManageTeam error:', error);
@@ -484,6 +567,21 @@ class GameBot extends TelegramBot {
         const heroId = data.replace('remove_hero_', '');
         await this.removeHeroFromTeam(chatId, callbackQuery.from.id, heroId);
         await this.answerCallbackQuery(callbackQuery.id);
+      }
+      // НОВЫЕ CALLBACK ДЛЯ WEB APP
+      else if (data === 'open_webapp_team') {
+        const webAppUrl = `${process.env.WEBHOOK_DOMAIN}/webapp/team?telegramId=${callbackQuery.from.id}`;
+        await this.answerCallbackQuery(callbackQuery.id, {
+          text: 'Открываю Web App...',
+          url: webAppUrl
+        });
+      }
+      else if (data === 'open_webapp_battle') {
+        const webAppUrl = `${process.env.WEBHOOK_DOMAIN}/webapp/battle?telegramId=${callbackQuery.from.id}`;
+        await this.answerCallbackQuery(callbackQuery.id, {
+          text: 'Начинаем битву...',
+          url: webAppUrl
+        });
       }
 
     } catch (error) {
@@ -637,7 +735,7 @@ class GameBot extends TelegramBot {
     }
   }
 
-  async handleWebAppTeam(chatId, data) {
+  async handleWebAppTeamCreation(chatId, data) {
     await this.sendMessage(chatId, '✅ Команда создана через Web App!');
   }
 

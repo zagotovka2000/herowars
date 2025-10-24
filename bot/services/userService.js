@@ -610,6 +610,149 @@ class UserService {
       'support': { name: 'Поддержка', emoji: '🎯', description: 'Усиление союзников' }
     };
   }
+  async getTeamForWebApp(telegramId) {
+   try {
+     const user = await this.findByTelegramId(telegramId);
+     const activeTeam = await this.models.Team.findOne({
+       where: { userId: user.id, isActive: true },
+       include: [{
+         model: this.models.Hero,
+         through: { attributes: ['position'] }
+       }]
+     });
+
+     const allHeroes = await this.models.Hero.findAll({
+       where: { userId: user.id, isActive: true },
+       order: [['level', 'DESC']]
+     });
+
+     const teamHeroes = activeTeam ? 
+       activeTeam.Heroes.sort((a, b) => a.TeamHero.position - b.TeamHero.position) : 
+       [];
+
+     return {
+       user: {
+         id: user.id,
+         username: user.username,
+         level: user.level,
+         gold: user.gold,
+         gems: user.gems
+       },
+       team: activeTeam ? {
+         id: activeTeam.id,
+         name: activeTeam.name,
+         heroes: teamHeroes.map(hero => ({
+           id: hero.id,
+           name: hero.name,
+           level: hero.level,
+           health: hero.health,
+           attack: hero.attack,
+           defense: hero.defense,
+           speed: hero.speed,
+           criticalChance: hero.criticalChance,
+           criticalDamage: hero.criticalDamage,
+           heroClass: hero.heroClass,
+           rarity: hero.rarity,
+           position: hero.TeamHero.position,
+           emoji: this.getHeroEmoji(hero.heroClass)
+         }))
+       } : null,
+       availableHeroes: allHeroes
+         .filter(hero => !teamHeroes.some(th => th.id === hero.id))
+         .map(hero => ({
+           id: hero.id,
+           name: hero.name,
+           level: hero.level,
+           health: hero.health,
+           attack: hero.attack,
+           defense: hero.defense,
+           speed: hero.speed,
+           criticalChance: hero.criticalChance,
+           criticalDamage: hero.criticalDamage,
+           heroClass: hero.heroClass,
+           rarity: hero.rarity,
+           emoji: this.getHeroEmoji(hero.heroClass)
+         })),
+       maxTeamSize: 5
+     };
+   } catch (error) {
+     console.error('UserService.getTeamForWebApp error:', error);
+     throw error;
+   }
+ }
+
+ // Новый метод для обновления команды из Web App
+ async updateTeamFromWebApp(telegramId, heroIds) {
+   try {
+     const user = await this.findByTelegramId(telegramId);
+     
+     // Проверяем, что все герои принадлежат пользователю
+     const userHeroes = await this.models.Hero.findAll({
+       where: { 
+         id: { [Op.in]: heroIds },
+         userId: user.id 
+       }
+     });
+
+     if (userHeroes.length !== heroIds.length) {
+       throw new Error('Некоторые герои не принадлежат вам');
+     }
+
+     // Проверяем на дубликаты
+     if (new Set(heroIds).size !== heroIds.length) {
+       throw new Error('В команде не может быть одинаковых героев');
+     }
+
+     if (heroIds.length > 5) {
+       throw new Error('Максимум 5 героев в команде');
+     }
+
+     // Находим или создаем активную команду
+     let team = await this.models.Team.findOne({
+       where: { userId: user.id, isActive: true }
+     });
+
+     if (!team) {
+       team = await this.models.Team.create({
+         name: `Команда ${user.username}`,
+         isActive: true,
+         userId: user.id
+       });
+     }
+
+     // Удаляем старых героев из команды
+     await this.models.TeamHero.destroy({
+       where: { teamId: team.id }
+     });
+
+     // Добавляем новых героев
+     for (let i = 0; i < heroIds.length; i++) {
+       await this.models.TeamHero.create({
+         teamId: team.id,
+         heroId: heroIds[i],
+         position: i + 1
+       });
+     }
+
+     return { success: true, teamSize: heroIds.length };
+   } catch (error) {
+     console.error('UserService.updateTeamFromWebApp error:', error);
+     throw error;
+   }
+ }
+
+ getHeroEmoji(heroClass) {
+   const emojis = {
+     'warrior': '⚔️',
+     'archer': '🏹',
+     'mage': '🔮',
+     'tank': '🛡️',
+     'healer': '💊',
+     'assassin': '🗡️',
+     'support': '🎯'
+   };
+   return emojis[heroClass] || '👤';
+ }
 }
 
 module.exports = UserService;

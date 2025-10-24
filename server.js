@@ -64,6 +64,78 @@ if (bot && useWebhook) {
 const apiRoutes = require('./routes/api')(db);
 app.use('/api', apiRoutes);
 
+// Маршрут для получения HTML управления командой
+app.get('/webapp/team', async (req, res) => {
+   try {
+     const { telegramId } = req.query;
+     
+     if (!telegramId) {
+       return res.status(400).send('Telegram ID required');
+     }
+ 
+     const teamData = await services.userService.getTeamForWebApp(parseInt(telegramId));
+     const html = services.webAppService.generateTeamManagementHTML(telegramId, teamData);
+     
+     res.setHeader('Content-Type', 'text/html');
+     res.send(html);
+   } catch (error) {
+     console.error('WebApp team error:', error);
+     res.status(500).send('Error loading team management');
+   }
+ });
+ 
+ // Маршрут для обновления команды
+ app.post('/api/webapp/update-team', async (req, res) => {
+   try {
+     const { telegramId, heroIds } = req.body;
+     
+     const result = await services.userService.updateTeamFromWebApp(telegramId, heroIds);
+     
+     res.json({ success: true, ...result });
+   } catch (error) {
+     console.error('Update team error:', error);
+     res.json({ success: false, message: error.message });
+   }
+ });
+ 
+ // Маршрут для начала боя
+ app.get('/webapp/battle', async (req, res) => {
+   try {
+     const { telegramId } = req.query;
+     
+     if (!telegramId) {
+       return res.status(400).send('Telegram ID required');
+     }
+ 
+     // Получаем команду пользователя
+     const user = await services.userService.findByTelegramId(parseInt(telegramId));
+     const userTeam = await services.models.Team.findOne({
+       where: { userId: user.id, isActive: true },
+       include: [{ model: services.models.Hero }]
+     });
+ 
+     if (!userTeam || userTeam.Heroes.length !== 5) {
+       return res.status(400).send('Need full team of 5 heroes');
+     }
+ 
+     // Получаем случайного противника
+     const opponentTeam = await services.battleService.getRandomOpponentTeam(user.id);
+     
+     // Симулируем бой пошагово
+     const battleSteps = await services.battleService.simulateBattleStepByStep(userTeam, opponentTeam);
+     
+     // Генерируем HTML для боя
+     const html = services.webAppService.generateBattleHTML(battleSteps, userTeam, opponentTeam);
+     
+     res.setHeader('Content-Type', 'text/html');
+     res.send(html);
+   } catch (error) {
+     console.error('WebApp battle error:', error);
+     res.status(500).send('Error starting battle');
+   }
+ });
+
+ 
 // Health check
 app.get('/health', (req, res) => {
   res.json({ 
