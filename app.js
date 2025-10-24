@@ -10,36 +10,43 @@ const app = express();
 
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 1000, // увеличенный лимит для разработки
   message: {
     error: 'Too many requests from this IP, please try again later.'
   }
 });
 
-app.use(cors({
-   origin: function (origin, callback) {
-     const allowedOrigins = [
-       process.env.FRONTEND_URL,
-       "https://frontend-herowars.vercel.app",
-       "http://localhost:3000"
-     ];
-     
-     // Разрешаем запросы без origin (например, от мобильных приложений)
-     if (!origin) return callback(null, true);
-     
-     if (allowedOrigins.indexOf(origin) !== -1) {
-       callback(null, true);
-     } else {
-       callback(new Error('Not allowed by CORS'));
-     }
-   },
-   credentials: true
- }));
+// CORS настройки
+const corsOptions = {
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      process.env.FRONTEND_URL,
+      "https://frontend-herowars.vercel.app",
+      "http://localhost:3000",
+      "https://herowars.alwaysdata.net"
+    ];
+    
+    // Разрешаем запросы без origin (например, от мобильных приложений, Telegram)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+};
 
+app.use(cors(corsOptions));
 app.use(helmet());
 app.use(compression());
-app.use(morgan('combined'));
+
+// Детальное логирование для разработки
+app.use(morgan('dev'));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(limiter);

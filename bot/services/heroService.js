@@ -271,6 +271,62 @@ class HeroService {
       throw error;
     }
   }
+
+  async createRandomHero(userId, cost = 500) {
+   try {
+     const user = await this.models.User.findByPk(userId);
+     
+     if (user.gold < cost) {
+       throw new Error(`Недостаточно золота. Нужно: ${cost}, у вас: ${user.gold}`);
+     }
+ 
+     const heroClasses = ['warrior', 'archer', 'mage', 'tank', 'healer'];
+     const classNames = {
+       warrior: 'Воин',
+       archer: 'Лучник', 
+       mage: 'Маг',
+       tank: 'Танк',
+       healer: 'Лекарь'
+     };
+     
+     const randomClass = heroClasses[Math.floor(Math.random() * heroClasses.length)];
+     const baseStats = this.getBaseStatsByClass(randomClass);
+     
+     // Генерируем уникальное имя
+     const heroName = `${classNames[randomClass]} ${Math.floor(Math.random() * 1000)}`;
+ 
+     const hero = await this.models.Hero.create({
+       name: heroName,
+       level: 1,
+       experience: 0,
+       health: baseStats.health,
+       attack: baseStats.attack,
+       defense: baseStats.defense,
+       speed: baseStats.speed,
+       criticalChance: baseStats.criticalChance,
+       criticalDamage: baseStats.criticalDamage,
+       heroClass: randomClass,
+       rarity: 'common',
+       userId: userId
+     });
+ 
+     // Списание золота
+     await user.update({
+       gold: user.gold - cost
+     });
+ 
+     return {
+       hero,
+       cost,
+       newGold: user.gold - cost
+     };
+   } catch (error) {
+     console.error('HeroService.createRandomHero error:', error);
+     throw error;
+   }
+ }
+
+ 
 }
 
 module.exports = HeroService;
