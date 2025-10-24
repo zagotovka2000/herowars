@@ -367,16 +367,17 @@ class UserService {
     }
   }
 
-  async getTeamManagementInfo(userId) {
+  async getTeamManagementInfo(telegramId) {
    try {
-     const user = await this.findById(userId);
+     // Используем findByTelegramId вместо findById
+     const user = await this.findByTelegramId(telegramId);
      const allHeroes = await this.models.Hero.findAll({
-       where: { userId },
+       where: { userId: user.id },
        order: [['level', 'DESC']]
      });
  
      const activeTeam = await this.models.Team.findOne({
-       where: { userId, isActive: true },
+       where: { userId: user.id, isActive: true },
        include: [{
          model: this.models.Hero,
          through: { attributes: ['position'] }
@@ -401,10 +402,11 @@ class UserService {
    }
  }
  
- async addHeroToTeam(userId, heroId, position) {
+ async addHeroToTeam(telegramId, heroId, position) {
    try {
+     const user = await this.findByTelegramId(telegramId);
      const team = await this.models.Team.findOne({
-       where: { userId, isActive: true }
+       where: { userId: user.id, isActive: true }
      });
  
      if (!team) {
@@ -413,7 +415,7 @@ class UserService {
  
      // Проверяем, что герой принадлежит пользователю
      const hero = await this.models.Hero.findOne({
-       where: { id: heroId, userId }
+       where: { id: heroId, userId: user.id }
      });
  
      if (!hero) {
@@ -472,10 +474,11 @@ class UserService {
    }
  }
  
- async removeHeroFromTeam(userId, heroId) {
+ async removeHeroFromTeam(telegramId, heroId) {
    try {
+     const user = await this.findByTelegramId(telegramId);
      const team = await this.models.Team.findOne({
-       where: { userId, isActive: true }
+       where: { userId: user.id, isActive: true }
      });
  
      if (!team) {
@@ -497,7 +500,7 @@ class UserService {
    }
  }
 
- 
+
 }
 
 module.exports = UserService;
