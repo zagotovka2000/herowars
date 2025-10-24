@@ -5,7 +5,7 @@ class UserService {
     this.models = models;
   }
 
-  async findOrCreate(telegramId, username) { //находит или создает пользователя по telegramId
+  async findOrCreate(telegramId, username) {
     try {
       const [user, created] = await this.models.User.findOrCreate({
         where: { telegramId },
@@ -21,9 +21,7 @@ class UserService {
 
       if (created) {
         console.log(`✅ Создан новый пользователь: ${username} (${telegramId})`);
-        // Создаем стартовых героев для нового пользователя
         await this.createStarterHeroes(user.id);
-        // Создаем стартовую команду
         await this.createStarterTeam(user.id);
       }
 
@@ -34,7 +32,7 @@ class UserService {
     }
   }
 
-  async findByTelegramId(telegramId) { //находит пользователя по telegramId
+  async findByTelegramId(telegramId) {
     try {
       const user = await this.models.User.findOne({
         where: { telegramId },
@@ -83,7 +81,6 @@ class UserService {
 
   async findRandomOpponent(currentUserId) {
     try {
-      // Ищем случайного пользователя, у которого есть активная команда с 5 героями
       const opponent = await this.models.User.findOne({
         where: {
           id: { [Op.ne]: currentUserId }
@@ -101,22 +98,20 @@ class UserService {
       });
 
       if (!opponent) {
-        // Если не нашли подходящего противника, создаем бота
         return await this.createBotUser();
       }
 
       return opponent;
     } catch (error) {
       console.error('UserService.findRandomOpponent error:', error);
-      // В случае ошибки создаем бота
       return await this.createBotUser();
     }
   }
 
-  async createBotUser() { //создают бота и его команду.
+  async createBotUser() {
     try {
       const botUser = await this.models.User.create({
-        telegramId: Math.floor(Math.random() * 1000000) * -1, // Отрицательные ID для ботов
+        telegramId: Math.floor(Math.random() * 1000000) * -1,
         username: 'Бот-противник',
         level: 1,
         experience: 0,
@@ -124,7 +119,6 @@ class UserService {
         gems: 0
       });
 
-      // Создаем команду бота
       await this.createBotTeam(botUser.id);
 
       return await this.findById(botUser.id);
@@ -142,7 +136,6 @@ class UserService {
         userId: userId
       });
 
-      // Создаем героев для бота
       const botHeroes = [
         {
           name: 'Воин бота',
@@ -208,12 +201,41 @@ class UserService {
           heroClass: 'healer',
           rarity: 'common',
           userId: userId
+        },
+        {
+          name: 'Ассассин бота',
+          level: 1,
+          health: 75,
+          attack: 22,
+          defense: 4,
+          speed: 9,
+          criticalChance: 0.18,
+          criticalDamage: 2.5,
+          heroClass: 'assassin',
+          rarity: 'common',
+          userId: userId
+        },
+        {
+          name: 'Поддержка бота',
+          level: 1,
+          health: 85,
+          attack: 8,
+          defense: 7,
+          speed: 6,
+          criticalChance: 0.06,
+          criticalDamage: 1.6,
+          heroClass: 'support',
+          rarity: 'common',
+          userId: userId
         }
       ];
 
-      const createdHeroes = await this.models.Hero.bulkCreate(botHeroes);
+      // Выбираем случайных 5 героев из 7 возможных для бота
+      const shuffledHeroes = botHeroes.sort(() => 0.5 - Math.random());
+      const selectedHeroes = shuffledHeroes.slice(0, 5);
 
-      // Добавляем героев в команду
+      const createdHeroes = await this.models.Hero.bulkCreate(selectedHeroes);
+
       for (let i = 0; i < createdHeroes.length; i++) {
         await this.models.TeamHero.create({
           teamId: botTeam.id,
@@ -229,7 +251,7 @@ class UserService {
     }
   }
 
-  async createStarterHeroes(userId) {//создает стартовых героев для нового пользователя.
+  async createStarterHeroes(userId) {
     try {
       const starterHeroes = [
         {
@@ -274,40 +296,107 @@ class UserService {
         {
           name: 'Начальный танк',
           level: 1,
-          health: 80,
-          attack: 25,
-          defense: 3,
-          speed: 6,
-          criticalChance: 0.12,
-          criticalDamage: 2.2,
-          heroClass: 'mage',
+          health: 120,
+          attack: 10,
+          defense: 12,
+          speed: 3,
+          criticalChance: 0.05,
+          criticalDamage: 1.3,
+          heroClass: 'tank',
           rarity: 'common',
           userId: userId
         },
         {
-          name: 'Начальный боец',
+          name: 'Начальный лекарь',
           level: 1,
-          health: 70,
-          attack: 25,
-          defense: 3,
+          health: 90,
+          attack: 12,
+          defense: 6,
+          speed: 7,
+          criticalChance: 0.08,
+          criticalDamage: 1.8,
+          heroClass: 'healer',
+          rarity: 'common',
+          userId: userId
+        },
+        {
+          name: 'Начальный ассассин',
+          level: 1,
+          health: 75,
+          attack: 22,
+          defense: 4,
+          speed: 9,
+          criticalChance: 0.18,
+          criticalDamage: 2.5,
+          heroClass: 'assassin',
+          rarity: 'common',
+          userId: userId
+        },
+        {
+          name: 'Начальный поддержка',
+          level: 1,
+          health: 85,
+          attack: 8,
+          defense: 7,
           speed: 6,
-          criticalChance: 0.12,
-          criticalDamage: 2.2,
-          heroClass: 'mage',
+          criticalChance: 0.06,
+          criticalDamage: 1.6,
+          heroClass: 'support',
           rarity: 'common',
           userId: userId
         }
       ];
 
-      await this.models.Hero.bulkCreate(starterHeroes);
-      console.log(`✅ Созданы стартовые герои для пользователя ${userId}`);
+      // Выбираем случайных 5 героев из 7 возможных для игрока
+      const shuffledHeroes = starterHeroes.sort(() => 0.5 - Math.random());
+      const selectedHeroes = shuffledHeroes.slice(0, 5);
+
+      await this.models.Hero.bulkCreate(selectedHeroes);
+      console.log(`✅ Созданы 5 случайных стартовых героев для пользователя ${userId}`);
+      
+      // Логируем какие герои были созданы
+      const createdHeroes = await this.models.Hero.findAll({
+        where: { userId },
+        attributes: ['name', 'heroClass']
+      });
+      console.log(`🎯 Созданные герои:`, createdHeroes.map(h => `${h.name} (${h.heroClass})`));
+
     } catch (error) {
       console.error('UserService.createStarterHeroes error:', error);
       throw error;
     }
   }
 
-  async updateUserResources(userId, resources) {//обновляет золото, изумруды, опыт и уровень пользователя.
+  async createStarterTeam(userId) {
+    try {
+      const team = await this.models.Team.create({
+        name: 'Стартовая команда',
+        isActive: true,
+        userId: userId
+      });
+
+      const heroes = await this.models.Hero.findAll({
+        where: { userId },
+        limit: 5
+      });
+
+      for (let i = 0; i < heroes.length; i++) {
+        await this.models.TeamHero.create({
+          teamId: team.id,
+          heroId: heroes[i].id,
+          position: i + 1
+        });
+      }
+
+      console.log(`✅ Создана стартовая команда для пользователя ${userId}`);
+      return team;
+    } catch (error) {
+      console.error('UserService.createStarterTeam error:', error);
+      throw error;
+    }
+  }
+
+  async updateUserResources(userId, resources) {
     try {
       const user = await this.findById(userId);
       
@@ -321,7 +410,6 @@ class UserService {
       if (resources.experience !== undefined) {
         updateData.experience = user.experience + resources.experience;
         
-        // Проверка повышения уровня
         const requiredExp = user.level * 100;
         if (updateData.experience >= requiredExp) {
           updateData.level = user.level + 1;
@@ -337,7 +425,7 @@ class UserService {
     }
   }
 
-  async getUserStats(userId) {//возвращает статистику пользователя (количество героев, битв, побед, винрейт).
+  async getUserStats(userId) {
     try {
       const user = await this.findById(userId);
       const heroesCount = await this.models.Hero.count({ where: { userId } });
@@ -368,139 +456,160 @@ class UserService {
   }
 
   async getTeamManagementInfo(telegramId) {
-   try {
-     // Используем findByTelegramId вместо findById
-     const user = await this.findByTelegramId(telegramId);
-     const allHeroes = await this.models.Hero.findAll({
-       where: { userId: user.id },
-       order: [['level', 'DESC']]
-     });
- 
-     const activeTeam = await this.models.Team.findOne({
-       where: { userId: user.id, isActive: true },
-       include: [{
-         model: this.models.Hero,
-         through: { attributes: ['position'] }
-       }]
-     });
- 
-     const teamHeroes = activeTeam ? 
-       activeTeam.Heroes.sort((a, b) => a.TeamHero.position - b.TeamHero.position) : 
-       [];
- 
-     return {
-       user,
-       allHeroes,
-       activeTeam,
-       teamHeroes,
-       availableSlots: 5 - teamHeroes.length,
-       hasFullTeam: teamHeroes.length === 5
-     };
-   } catch (error) {
-     console.error('UserService.getTeamManagementInfo error:', error);
-     throw error;
-   }
- }
- 
- async addHeroToTeam(telegramId, heroId, position) {
-   try {
-     const user = await this.findByTelegramId(telegramId);
-     const team = await this.models.Team.findOne({
-       where: { userId: user.id, isActive: true }
-     });
- 
-     if (!team) {
-       throw new Error('Сначала создайте команду с помощью /create_team');
-     }
- 
-     // Проверяем, что герой принадлежит пользователю
-     const hero = await this.models.Hero.findOne({
-       where: { id: heroId, userId: user.id }
-     });
- 
-     if (!hero) {
-       throw new Error('Герой не найден или не принадлежит вам');
-     }
- 
-     // Проверяем, не добавлен ли уже герой в команду
-     const existingInTeam = await this.models.TeamHero.findOne({
-       where: { teamId: team.id, heroId }
-     });
- 
-     if (existingInTeam) {
-       throw new Error('Этот герой уже в команде');
-     }
- 
-     // Если позиция не указана, находим свободную
-     if (!position) {
-       const occupiedPositions = await this.models.TeamHero.findAll({
-         where: { teamId: team.id },
-         attributes: ['position']
-       });
-       
-       const occupied = occupiedPositions.map(p => p.position);
-       position = [1, 2, 3, 4, 5].find(p => !occupied.includes(p));
-       
-       if (!position) {
-         throw new Error('В команде нет свободных слотов');
-       }
-     }
- 
-     // Проверяем, что позиция валидна
-     if (position < 1 || position > 5) {
-       throw new Error('Позиция должна быть от 1 до 5');
-     }
- 
-     // Проверяем, что позиция не занята
-     const positionOccupied = await this.models.TeamHero.findOne({
-       where: { teamId: team.id, position }
-     });
- 
-     if (positionOccupied) {
-       throw new Error(`Позиция ${position} уже занята`);
-     }
- 
-     // Добавляем героя в команду
-     await this.models.TeamHero.create({
-       teamId: team.id,
-       heroId: heroId,
-       position: position
-     });
- 
-     return { success: true, position };
-   } catch (error) {
-     console.error('UserService.addHeroToTeam error:', error);
-     throw error;
-   }
- }
- 
- async removeHeroFromTeam(telegramId, heroId) {
-   try {
-     const user = await this.findByTelegramId(telegramId);
-     const team = await this.models.Team.findOne({
-       where: { userId: user.id, isActive: true }
-     });
- 
-     if (!team) {
-       throw new Error('Активная команда не найдена');
-     }
- 
-     const result = await this.models.TeamHero.destroy({
-       where: { teamId: team.id, heroId }
-     });
- 
-     if (result === 0) {
-       throw new Error('Герой не найден в команде');
-     }
- 
-     return { success: true };
-   } catch (error) {
-     console.error('UserService.removeHeroFromTeam error:', error);
-     throw error;
-   }
- }
+    try {
+      const user = await this.findByTelegramId(telegramId);
+      const allHeroes = await this.models.Hero.findAll({
+        where: { userId: user.id },
+        order: [['level', 'DESC']]
+      });
 
+      const activeTeam = await this.models.Team.findOne({
+        where: { userId: user.id, isActive: true },
+        include: [{
+          model: this.models.Hero,
+          through: { attributes: ['position'] }
+        }]
+      });
 
+      const teamHeroes = activeTeam ? 
+        activeTeam.Heroes.sort((a, b) => a.TeamHero.position - b.TeamHero.position) : 
+        [];
+
+      return {
+        user,
+        allHeroes,
+        activeTeam,
+        teamHeroes,
+        availableSlots: 5 - teamHeroes.length,
+        hasFullTeam: teamHeroes.length === 5
+      };
+    } catch (error) {
+      console.error('UserService.getTeamManagementInfo error:', error);
+      throw error;
+    }
+  }
+
+  async addHeroToTeam(telegramId, heroId, position) {
+    try {
+      const user = await this.findByTelegramId(telegramId);
+      const team = await this.models.Team.findOne({
+        where: { userId: user.id, isActive: true }
+      });
+
+      if (!team) {
+        throw new Error('Сначала создайте команду с помощью /create_team');
+      }
+
+      const hero = await this.models.Hero.findOne({
+        where: { id: heroId, userId: user.id }
+      });
+
+      if (!hero) {
+        throw new Error('Герой не найден или не принадлежит вам');
+      }
+
+      const existingInTeam = await this.models.TeamHero.findOne({
+        where: { teamId: team.id, heroId }
+      });
+
+      if (existingInTeam) {
+        throw new Error('Этот герой уже в команде');
+      }
+
+      if (!position) {
+        const occupiedPositions = await this.models.TeamHero.findAll({
+          where: { teamId: team.id },
+          attributes: ['position']
+        });
+        
+        const occupied = occupiedPositions.map(p => p.position);
+        position = [1, 2, 3, 4, 5].find(p => !occupied.includes(p));
+        
+        if (!position) {
+          throw new Error('В команде нет свободных слотов');
+        }
+      }
+
+      if (position < 1 || position > 5) {
+        throw new Error('Позиция должна быть от 1 до 5');
+      }
+
+      const positionOccupied = await this.models.TeamHero.findOne({
+        where: { teamId: team.id, position }
+      });
+
+      if (positionOccupied) {
+        throw new Error(`Позиция ${position} уже занята`);
+      }
+
+      await this.models.TeamHero.create({
+        teamId: team.id,
+        heroId: heroId,
+        position: position
+      });
+
+      return { success: true, position };
+    } catch (error) {
+      console.error('UserService.addHeroToTeam error:', error);
+      throw error;
+    }
+  }
+
+  async removeHeroFromTeam(telegramId, heroId) {
+    try {
+      const user = await this.findByTelegramId(telegramId);
+      const team = await this.models.Team.findOne({
+        where: { userId: user.id, isActive: true }
+      });
+
+      if (!team) {
+        throw new Error('Активная команда не найдена');
+      }
+
+      const result = await this.models.TeamHero.destroy({
+        where: { teamId: team.id, heroId }
+      });
+
+      if (result === 0) {
+        throw new Error('Герой не найден в команде');
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('UserService.removeHeroFromTeam error:', error);
+      throw error;
+    }
+  }
+
+  // Новый метод для сортировки героев по классам
+  sortHeroesByClass(heroes) {
+    const classOrder = {
+      'tank': 1,
+      'warrior': 2,
+      'archer': 3,
+      'mage': 4,
+      'assassin': 5,
+      'healer': 6,
+      'support': 7
+    };
+
+    return heroes.sort((a, b) => {
+      return classOrder[a.heroClass] - classOrder[b.heroClass];
+    });
+  }
+
+  // Новый метод для получения информации о классах героев
+  getHeroClassesInfo() {
+    return {
+      'warrior': { name: 'Воин', emoji: '⚔️', description: 'Сбалансированный боец' },
+      'archer': { name: 'Лучник', emoji: '🏹', description: 'Высокий урон, низкая защита' },
+      'mage': { name: 'Маг', emoji: '🔮', description: 'Мощные заклинания' },
+      'tank': { name: 'Танк', emoji: '🛡️', description: 'Высокая защита, низкий урон' },
+      'healer': { name: 'Лекарь', emoji: '💊', description: 'Лечение союзников' },
+      'assassin': { name: 'Ассассин', emoji: '🗡️', description: 'Высокий крит. урон, низкое здоровье' },
+      'support': { name: 'Поддержка', emoji: '🎯', description: 'Усиление союзников' }
+    };
+  }
 }
 
 module.exports = UserService;

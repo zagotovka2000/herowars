@@ -325,8 +325,69 @@ class HeroService {
      throw error;
    }
  }
-
+ getBaseStatsByClass(heroClass) {
+   const baseStats = {
+     warrior: {
+       health: 100,
+       attack: 15,
+       defense: 8,
+       speed: 5,
+       criticalChance: 0.1,
+       criticalDamage: 1.5
+     },
+     archer: {
+       health: 80,
+       attack: 20,
+       defense: 5,
+       speed: 8,
+       criticalChance: 0.15,
+       criticalDamage: 2.0
+     },
+     mage: {
+       health: 70,
+       attack: 25,
+       defense: 3,
+       speed: 6,
+       criticalChance: 0.12,
+       criticalDamage: 2.2
+     },
+     tank: {
+       health: 120,
+       attack: 10,
+       defense: 12,
+       speed: 3,
+       criticalChance: 0.05,
+       criticalDamage: 1.3
+     },
+     healer: {
+       health: 90,
+       attack: 12,
+       defense: 6,
+       speed: 7,
+       criticalChance: 0.08,
+       criticalDamage: 1.8
+     },
+     assassin: {
+       health: 75,
+       attack: 22,
+       defense: 4,
+       speed: 9,
+       criticalChance: 0.18,
+       criticalDamage: 2.5
+     },
+     support: {
+       health: 85,
+       attack: 8,
+       defense: 7,
+       speed: 6,
+       criticalChance: 0.06,
+       criticalDamage: 1.6
+     }
+   };
  
+   return baseStats[heroClass] || baseStats.warrior;
+ }
+
 }
 
 module.exports = HeroService;
