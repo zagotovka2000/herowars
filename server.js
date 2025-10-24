@@ -3,7 +3,7 @@ const app = require('./app');
 const db = require('./db/models');
 const express = require('express');
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8100;
 
 // Инициализация сервисов
 const UserService = require('./bot/services/userService');
@@ -100,23 +100,24 @@ async function setWebhook() {
    }
  }
 
-// Запуск сервера
-const startServer = async () => {
-  try {
-    // Проверка подключения к БД
-    await db.sequelize.authenticate();
-    console.log('✅ Database connected');
-    
-    console.log('🚀 Starting server...');
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`✅ Server running on port ${PORT}`);
-      console.log(`🏥 Health: http://0.0.0.0:${PORT}/health`);
-      
-    });
-  } catch (error) {
-    console.error('❌ Server start failed:', error);
-    process.exit(1);
-  }
-};
-
+ const startServer = async () => {
+   try {
+     // Проверка подключения к БД
+     await db.sequelize.authenticate();
+     console.log('✅ Database connected');
+     
+     console.log('🚀 Starting server...');
+     const server = app.listen(PORT, async () => {
+       console.log(`✅ Server running on port ${PORT}`);
+       
+       // Устанавливаем webhook после запуска сервера
+       await setWebhook();
+     });
+     
+   } catch (error) {
+     console.error('❌ Server start failed:', error);
+     process.exit(1);
+   }
+ };
+ 
 startServer();
