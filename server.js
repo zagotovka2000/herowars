@@ -5,6 +5,9 @@ const express = require('express');
 
 const PORT = process.env.PORT || 8100;
 
+const isDevelopment = process.env.NODE_ENV === 'development';
+console.log(`🚀 Starting in ${isDevelopment ? 'DEVELOPMENT' : 'PRODUCTION'} mode`);
+
 // Инициализация сервисов
 const UserService = require('./bot/services/userService');
 const HeroService = require('./bot/services/heroService');
@@ -20,19 +23,26 @@ const services = {
 // Инициализация бота
 let bot = null;
 if (process.env.BOT_TOKEN) {
-  const GameBot = require('./bot/bot');
-  try {
-    bot = new GameBot(process.env.BOT_TOKEN, { 
-      polling: false 
-    }, services);
-    
-  
-    bot.setWebAppUrl(process.env.FRONTEND_URL);
-    
-    console.log('🤖 Telegram Bot initialized (webhook mode)');  } catch (error) {
-    console.error('❌ Bot init failed:', error.message);
-  }
-}
+   const GameBot = require('./bot/bot');
+   try {
+     if (isDevelopment) {
+       // РЕЖИМ РАЗРАБОТКИ - используем polling
+       bot = new GameBot(process.env.BOT_TOKEN, { 
+         polling: true 
+       }, services);
+       console.log('🔧 Telegram Bot initialized (POLLING mode)');
+     } else {
+       // РЕЖИМ ПРОДАКШЕНА - используем webhook
+       bot = new GameBot(process.env.BOT_TOKEN, { 
+         polling: false 
+       }, services);
+       bot.setWebAppUrl(process.env.FRONTEND_URL);
+       console.log('🤖 Telegram Bot initialized (WEBHOOK mode)');
+     }
+   } catch (error) {
+     console.error('❌ Bot init failed:', error.message);
+   }
+ }
 
 // API Routes
 const apiRoutes = require('./routes/api')(db);

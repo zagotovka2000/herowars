@@ -16,12 +16,26 @@ const limiter = rateLimit({
     error: 'Too many requests from this IP, please try again later.'
   }
 });
-// app.js - ДОБАВЬТЕ после rate limiting
+
 app.use(cors({
-   origin: process.env.FRONTEND_URL || "https://frontend-herowars.vercel.app",
+   origin: function (origin, callback) {
+     const allowedOrigins = [
+       process.env.FRONTEND_URL,
+       "https://frontend-herowars.vercel.app",
+       "http://localhost:3000"
+     ];
+     
+     // Разрешаем запросы без origin (например, от мобильных приложений)
+     if (!origin) return callback(null, true);
+     
+     if (allowedOrigins.indexOf(origin) !== -1) {
+       callback(null, true);
+     } else {
+       callback(new Error('Not allowed by CORS'));
+     }
+   },
    credentials: true
  }));
-
 
 app.use(helmet());
 app.use(compression());
