@@ -456,133 +456,221 @@ class UserService {
   }
 
   async getTeamManagementInfo(telegramId) {
-    try {
-      const user = await this.findByTelegramId(telegramId);
-      const allHeroes = await this.models.Hero.findAll({
-        where: { userId: user.id },
-        order: [['level', 'DESC']]
-      });
+   try {
+     const user = await this.findByTelegramId(telegramId);
+     const allHeroes = await this.models.Hero.findAll({
+       where: { userId: user.id },
+       order: [['level', 'DESC']]
+     });
 
-      const activeTeam = await this.models.Team.findOne({
-        where: { userId: user.id, isActive: true },
-        include: [{
-          model: this.models.Hero,
-          through: { attributes: ['position'] }
-        }]
-      });
+     // ИСПРАВЛЕНИЕ: Правильно загружаем команду с героями
+     const activeTeam = await this.models.Team.findOne({
+       where: { userId: user.id, isActive: true },
+       include: [{
+         model: this.models.Hero,
+         through: { attributes: ['position'] }
+       }]
+     });
 
-      const teamHeroes = activeTeam ? 
-        activeTeam.Heroes.sort((a, b) => a.TeamHero.position - b.TeamHero.position) : 
-        [];
+     console.log('🔍 DEBUG TeamManagementInfo:', {
+       hasActiveTeam: !!activeTeam,
+       teamId: activeTeam?.id,
+       heroesCount: activeTeam?.Heroes?.length,
+       heroes: activeTeam?.Heroes?.map(h => ({ id: h.id, name: h.name, position: h.TeamHero?.position }))
+     });
 
-      return {
-        user,
-        allHeroes,
-        activeTeam,
-        teamHeroes,
-        availableSlots: 5 - teamHeroes.length,
-        hasFullTeam: teamHeroes.length === 5
-      };
-    } catch (error) {
-      console.error('UserService.getTeamManagementInfo error:', error);
-      throw error;
-    }
-  }
+     // ИСПРАВЛЕНИЕ: Правильно обрабатываем героев команды
+     let teamHeroes = [];
+     if (activeTeam && activeTeam.Heroes) {
+       // Фильтруем героев, у которых есть связь TeamHero
+       teamHeroes = activeTeam.Heroes
+         .filter(hero => hero.TeamHero && hero.TeamHero.position)
+         .sort((a, b) => a.TeamHero.position - b.TeamHero.position);
+     }
 
-  async addHeroToTeam(telegramId, heroId, position) {
-    try {
-      const user = await this.findByTelegramId(telegramId);
-      const team = await this.models.Team.findOne({
-        where: { userId: user.id, isActive: true }
-      });
+     console.log('🔍 DEBUG Processed teamHeroes:', teamHeroes.map(th => ({
+       id: th.id, 
+       name: th.name, 
+       position: th.TeamHero.position 
+     })));
 
-      if (!team) {
-        throw new Error('Сначала создайте команду с помощью /create_team');
-      }
+     return {
+       user,
+       allHeroes: allHeroes || [],
+       activeTeam,
+       teamHeroes,
+       availableSlots: 5 - teamHeroes.length,
+       hasFullTeam: teamHeroes.length === 5
+     };
+   } catch (error) {
+     console.error('UserService.getTeamManagementInfo error:', error);
+     throw error;
+   }
+ }
 
-      const hero = await this.models.Hero.findOne({
-        where: { id: heroId, userId: user.id }
-      });
+ async addHeroToTeam(telegramId, heroId, position) {
+   try {
+     const user = await this.findByTelegramId(telegramId);
+     const team = await this.models.Team.findOne({
+       where: { userId: user.id, isActive: true }
+     });
 
-      if (!hero) {
-        throw new Error('Герой не найден или не принадлежит вам');
-      }
+     if (!team) {
+       throw new Error('Сначала создайте команду с помощью /create_team');
+     }
 
-      const existingInTeam = await this.models.TeamHero.findOne({
-        where: { teamId: team.id, heroId }
-      });
+     const hero = await this.models.Hero.findOne({
+       where: { id: heroId, userId: user.id }
+     });
 
-      if (existingInTeam) {
-        throw new Error('Этот герой уже в команде');
-      }
+     if (!hero) {
+       throw new Error('Герой не найден или не принадлежит вам');
+     }
 
-      if (!position) {
-        const occupiedPositions = await this.models.TeamHero.findAll({
-          where: { teamId: team.id },
-          attributes: ['position']
-        });
-        
-        const occupied = occupiedPositions.map(p => p.position);
-        position = [1, 2, 3, 4, 5].find(p => !occupied.includes(p));
-        
-        if (!position) {
-          throw new Error('В команде нет свободных слотов');
-        }
-      }
+     // ИСПРАВЛЕНИЕ: Правильно проверяем, есть ли герой уже в команде
+     const existingInTeam = await this.models.TeamHero.findOne({
+       where: { teamId: team.id, heroId: heroId }
+     });
 
-      if (position < 1 || position > 5) {
-        throw new Error('Позиция должна быть от 1 до 5');
-      }
+     console.log('🔍 DEBUG addHeroToTeam check:', {
+       teamId: team.id,
+       heroId: heroId,
+       existingInTeam: !!existingInTeam
+     });
 
-      const positionOccupied = await this.models.TeamHero.findOne({
-        where: { teamId: team.id, position }
-      });
+     if (existingInTeam) {
+       throw new Error('Этот герой уже в команде');
+     }
 
-      if (positionOccupied) {
-        throw new Error(`Позиция ${position} уже занята`);
-      }
+     if (!position) {
+       const occupiedPositions = await this.models.TeamHero.findAll({
+         where: { teamId: team.id },
+         attributes: ['position']
+       });
+       
+       const occupied = occupiedPositions.map(p => p.position);
+       position = [1, 2, 3, 4, 5].find(p => !occupied.includes(p));
+       
+       if (!position) {
+         throw new Error('В команде нет свободных слотов');
+       }
+     }
 
-      await this.models.TeamHero.create({
-        teamId: team.id,
-        heroId: heroId,
-        position: position
-      });
+     if (position < 1 || position > 5) {
+       throw new Error('Позиция должна быть от 1 до 5');
+     }
 
-      return { success: true, position };
-    } catch (error) {
-      console.error('UserService.addHeroToTeam error:', error);
-      throw error;
-    }
-  }
+     const positionOccupied = await this.models.TeamHero.findOne({
+       where: { teamId: team.id, position: position }
+     });
 
-  async removeHeroFromTeam(telegramId, heroId) {
-    try {
-      const user = await this.findByTelegramId(telegramId);
-      const team = await this.models.Team.findOne({
-        where: { userId: user.id, isActive: true }
-      });
+     if (positionOccupied) {
+       throw new Error(`Позиция ${position} уже занята`);
+     }
 
-      if (!team) {
-        throw new Error('Активная команда не найдена');
-      }
+     await this.models.TeamHero.create({
+       teamId: team.id,
+       heroId: heroId,
+       position: position
+     });
 
-      const result = await this.models.TeamHero.destroy({
-        where: { teamId: team.id, heroId }
-      });
+     console.log('✅ Герой добавлен в команду:', { teamId: team.id, heroId, position });
 
-      if (result === 0) {
-        throw new Error('Герой не найден в команде');
-      }
+     return { success: true, position };
+   } catch (error) {
+     console.error('UserService.addHeroToTeam error:', error);
+     throw error;
+   }
+ }
 
-      return { success: true };
-    } catch (error) {
-      console.error('UserService.removeHeroFromTeam error:', error);
-      throw error;
-    }
-  }
+ async removeHeroFromTeam(telegramId, heroId) {
+   try {
+     const user = await this.findByTelegramId(telegramId);
+     const team = await this.models.Team.findOne({
+       where: { userId: user.id, isActive: true }
+     });
+
+     if (!team) {
+       throw new Error('Активная команда не найдена');
+     }
+
+     // ИСПРАВЛЕНИЕ: Правильно проверяем существование героя в команде
+     const teamHero = await this.models.TeamHero.findOne({
+       where: { teamId: team.id, heroId: heroId }
+     });
+
+     console.log('🔍 DEBUG removeHeroFromTeam check:', {
+       teamId: team.id,
+       heroId: heroId,
+       teamHeroExists: !!teamHero
+     });
+
+     if (!teamHero) {
+       throw new Error('Герой не найден в команде');
+     }
+
+     const result = await this.models.TeamHero.destroy({
+       where: { teamId: team.id, heroId: heroId }
+     });
+
+     console.log('✅ Герой удален из команды:', { teamId: team.id, heroId, result });
+
+     return { success: true };
+   } catch (error) {
+     console.error('UserService.removeHeroFromTeam error:', error);
+     throw error;
+   }
+ }
+// ИСПРАВЛЕНИЕ: Добавляем метод для принудительной синхронизации команды
+async syncTeamData(telegramId) {
+   try {
+     const user = await this.findByTelegramId(telegramId);
+     const team = await this.models.Team.findOne({
+       where: { userId: user.id, isActive: true }
+     });
+
+     if (!team) {
+       return { success: false, message: 'Команда не найдена' };
+     }
+
+     // Получаем всех героев в команде из базы
+     const teamHeroes = await this.models.TeamHero.findAll({
+       where: { teamId: team.id },
+       include: [{ model: this.models.Hero }]
+     });
+
+     console.log('🔍 DEBUG syncTeamData:', {
+       teamId: team.id,
+       teamHeroesCount: teamHeroes.length,
+       teamHeroes: teamHeroes.map(th => ({
+         heroId: th.heroId,
+         position: th.position,
+         heroName: th.Hero?.name
+       }))
+     });
+
+     return {
+       success: true,
+       teamId: team.id,
+       heroesCount: teamHeroes.length,
+       heroes: teamHeroes.map(th => ({
+         id: th.Hero.id,
+         name: th.Hero.name,
+         position: th.position
+       }))
+     };
+   } catch (error) {
+     console.error('UserService.syncTeamData error:', error);
+     throw error;
+   }
+ }
 
   // Новый метод для сортировки героев по классам
   sortHeroesByClass(heroes) {
+    if (!heroes || !Array.isArray(heroes)) {
+      return [];
+    }
+
     const classOrder = {
       'tank': 1,
       'warrior': 2,
@@ -594,7 +682,7 @@ class UserService {
     };
 
     return heroes.sort((a, b) => {
-      return classOrder[a.heroClass] - classOrder[b.heroClass];
+      return (classOrder[a.heroClass] || 8) - (classOrder[b.heroClass] || 8);
     });
   }
 
@@ -610,149 +698,156 @@ class UserService {
       'support': { name: 'Поддержка', emoji: '🎯', description: 'Усиление союзников' }
     };
   }
+
+  // НОВЫЕ МЕТОДЫ ДЛЯ WEB APP
+
+  // Получение данных команды для Web App
   async getTeamForWebApp(telegramId) {
-   try {
-     const user = await this.findByTelegramId(telegramId);
-     const activeTeam = await this.models.Team.findOne({
-       where: { userId: user.id, isActive: true },
-       include: [{
-         model: this.models.Hero,
-         through: { attributes: ['position'] }
-       }]
-     });
+    try {
+      const user = await this.findByTelegramId(telegramId);
+      const activeTeam = await this.models.Team.findOne({
+        where: { userId: user.id, isActive: true },
+        include: [{
+          model: this.models.Hero,
+          through: { attributes: ['position'] }
+        }]
+      });
 
-     const allHeroes = await this.models.Hero.findAll({
-       where: { userId: user.id, isActive: true },
-       order: [['level', 'DESC']]
-     });
+      const allHeroes = await this.models.Hero.findAll({
+        where: { userId: user.id, isActive: true },
+        order: [['level', 'DESC']]
+      });
 
-     const teamHeroes = activeTeam ? 
-       activeTeam.Heroes.sort((a, b) => a.TeamHero.position - b.TeamHero.position) : 
-       [];
+      // ИСПРАВЛЕНИЕ: Безопасная обработка teamHeroes
+      const teamHeroes = activeTeam && activeTeam.Heroes ? 
+        activeTeam.Heroes
+          .filter(hero => hero.TeamHero)
+          .sort((a, b) => (a.TeamHero?.position || 0) - (b.TeamHero?.position || 0)) : 
+        [];
 
-     return {
-       user: {
-         id: user.id,
-         username: user.username,
-         level: user.level,
-         gold: user.gold,
-         gems: user.gems
-       },
-       team: activeTeam ? {
-         id: activeTeam.id,
-         name: activeTeam.name,
-         heroes: teamHeroes.map(hero => ({
-           id: hero.id,
-           name: hero.name,
-           level: hero.level,
-           health: hero.health,
-           attack: hero.attack,
-           defense: hero.defense,
-           speed: hero.speed,
-           criticalChance: hero.criticalChance,
-           criticalDamage: hero.criticalDamage,
-           heroClass: hero.heroClass,
-           rarity: hero.rarity,
-           position: hero.TeamHero.position,
-           emoji: this.getHeroEmoji(hero.heroClass)
-         }))
-       } : null,
-       availableHeroes: allHeroes
-         .filter(hero => !teamHeroes.some(th => th.id === hero.id))
-         .map(hero => ({
-           id: hero.id,
-           name: hero.name,
-           level: hero.level,
-           health: hero.health,
-           attack: hero.attack,
-           defense: hero.defense,
-           speed: hero.speed,
-           criticalChance: hero.criticalChance,
-           criticalDamage: hero.criticalDamage,
-           heroClass: hero.heroClass,
-           rarity: hero.rarity,
-           emoji: this.getHeroEmoji(hero.heroClass)
-         })),
-       maxTeamSize: 5
-     };
-   } catch (error) {
-     console.error('UserService.getTeamForWebApp error:', error);
-     throw error;
-   }
- }
+      return {
+        user: {
+          id: user.id,
+          username: user.username,
+          level: user.level,
+          gold: user.gold,
+          gems: user.gems
+        },
+        team: activeTeam ? {
+          id: activeTeam.id,
+          name: activeTeam.name,
+          heroes: teamHeroes.map(hero => ({
+            id: hero.id,
+            name: hero.name,
+            level: hero.level,
+            health: hero.health,
+            attack: hero.attack,
+            defense: hero.defense,
+            speed: hero.speed,
+            criticalChance: hero.criticalChance,
+            criticalDamage: hero.criticalDamage,
+            heroClass: hero.heroClass,
+            rarity: hero.rarity,
+            position: hero.TeamHero?.position || 0,
+            emoji: this.getHeroEmoji(hero.heroClass)
+          }))
+        } : null,
+        availableHeroes: (allHeroes || [])
+          .filter(hero => !teamHeroes.some(th => th.id === hero.id))
+          .map(hero => ({
+            id: hero.id,
+            name: hero.name,
+            level: hero.level,
+            health: hero.health,
+            attack: hero.attack,
+            defense: hero.defense,
+            speed: hero.speed,
+            criticalChance: hero.criticalChance,
+            criticalDamage: hero.criticalDamage,
+            heroClass: hero.heroClass,
+            rarity: hero.rarity,
+            emoji: this.getHeroEmoji(hero.heroClass)
+          })),
+        maxTeamSize: 5
+      };
+    } catch (error) {
+      console.error('UserService.getTeamForWebApp error:', error);
+      throw error;
+    }
+  }
 
- // Новый метод для обновления команды из Web App
- async updateTeamFromWebApp(telegramId, heroIds) {
-   try {
-     const user = await this.findByTelegramId(telegramId);
-     
-     // Проверяем, что все герои принадлежат пользователю
-     const userHeroes = await this.models.Hero.findAll({
-       where: { 
-         id: { [Op.in]: heroIds },
-         userId: user.id 
-       }
-     });
+  // Обновление команды из Web App
+  async updateTeamFromWebApp(telegramId, heroIds) {
+    try {
+      const user = await this.findByTelegramId(telegramId);
+      
+      // Проверяем, что все герои принадлежат пользователю
+      const userHeroes = await this.models.Hero.findAll({
+        where: { 
+          id: { [Op.in]: heroIds },
+          userId: user.id 
+        }
+      });
 
-     if (userHeroes.length !== heroIds.length) {
-       throw new Error('Некоторые герои не принадлежат вам');
-     }
+      if (userHeroes.length !== heroIds.length) {
+        throw new Error('Некоторые герои не принадлежат вам');
+      }
 
-     // Проверяем на дубликаты
-     if (new Set(heroIds).size !== heroIds.length) {
-       throw new Error('В команде не может быть одинаковых героев');
-     }
+      // Проверяем на дубликаты
+      if (new Set(heroIds).size !== heroIds.length) {
+        throw new Error('В команде не может быть одинаковых героев');
+      }
 
-     if (heroIds.length > 5) {
-       throw new Error('Максимум 5 героев в команде');
-     }
+      if (heroIds.length > 5) {
+        throw new Error('Максимум 5 героев в команде');
+      }
 
-     // Находим или создаем активную команду
-     let team = await this.models.Team.findOne({
-       where: { userId: user.id, isActive: true }
-     });
+      // Находим или создаем активную команду
+      let team = await this.models.Team.findOne({
+        where: { userId: user.id, isActive: true }
+      });
 
-     if (!team) {
-       team = await this.models.Team.create({
-         name: `Команда ${user.username}`,
-         isActive: true,
-         userId: user.id
-       });
-     }
+      if (!team) {
+        team = await this.models.Team.create({
+          name: `Команда ${user.username}`,
+          isActive: true,
+          userId: user.id
+        });
+      }
 
-     // Удаляем старых героев из команды
-     await this.models.TeamHero.destroy({
-       where: { teamId: team.id }
-     });
+      // Удаляем старых героев из команды
+      await this.models.TeamHero.destroy({
+        where: { teamId: team.id }
+      });
 
-     // Добавляем новых героев
-     for (let i = 0; i < heroIds.length; i++) {
-       await this.models.TeamHero.create({
-         teamId: team.id,
-         heroId: heroIds[i],
-         position: i + 1
-       });
-     }
+      // Добавляем новых героев
+      for (let i = 0; i < heroIds.length; i++) {
+        await this.models.TeamHero.create({
+          teamId: team.id,
+          heroId: heroIds[i],
+          position: i + 1
+        });
+      }
 
-     return { success: true, teamSize: heroIds.length };
-   } catch (error) {
-     console.error('UserService.updateTeamFromWebApp error:', error);
-     throw error;
-   }
- }
+      return { success: true, teamSize: heroIds.length };
+    } catch (error) {
+      console.error('UserService.updateTeamFromWebApp error:', error);
+      throw error;
+    }
+  }
 
- getHeroEmoji(heroClass) {
-   const emojis = {
-     'warrior': '⚔️',
-     'archer': '🏹',
-     'mage': '🔮',
-     'tank': '🛡️',
-     'healer': '💊',
-     'assassin': '🗡️',
-     'support': '🎯'
-   };
-   return emojis[heroClass] || '👤';
- }
+  getHeroEmoji(heroClass) {
+    const emojis = {
+      'warrior': '⚔️',
+      'archer': '🏹',
+      'mage': '🔮',
+      'tank': '🛡️',
+      'healer': '💊',
+      'assassin': '🗡️',
+      'support': '🎯'
+    };
+    return emojis[heroClass] || '👤';
+  }
 }
 
 module.exports = UserService;
