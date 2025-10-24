@@ -5,7 +5,7 @@
    "main": "server.js",
    "scripts": {
       "start": "NODE_ENV=development USE_WEBHOOK=true node server.js",
-      "dev": "NODE_ENV=development USE_WEBHOOK=false nodemon server.js",
+      "dev": "NODE_ENV=development USE_WEBHOOK=true nodemon server.js",
       "db:migrate": "npx sequelize-cli db:migrate",
       "db:seed": "npx sequelize-cli db:seed:all",
       "webhook:set": "node webhook-setup.js set",
