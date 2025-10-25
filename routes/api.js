@@ -12,37 +12,31 @@ module.exports = function(models) {
       }
       
       const user = await models.User.findOne({ 
-        where: { telegramId },
-        include: [
-          { 
-            model: models.Hero,
-            order: [['level', 'DESC']]
-          },
-          { 
-            model: models.Team, 
-            where: { isActive: true },
-            required: false,
-            include: [{ 
-              model: models.Hero,
-              through: { attributes: ['position'] }
-            }] 
-          }
-        ]
-      });
-      
-      if (!user) {
-        return res.status(404).json({ error: 'User not found' });
-      }
-
-      // Получаем статистику битв
-      const battlesCount = await models.Battle.count({
-        where: {
-          [models.Sequelize.Op.or]: [
-            { player1Id: user.id },
-            { player2Id: user.id }
-          ]
-        }
-      });
+         where: { telegramId },
+         include: [
+           { 
+             model: models.Hero,
+             include: [{
+               model: models.HeroSkill,
+               as: 'skills' // Добавляем навыки
+             }],
+             order: [['level', 'DESC']]
+           },
+           { 
+             model: models.Team, 
+             where: { isActive: true },
+             required: false,
+             include: [{ 
+               model: models.Hero,
+               include: [{
+                 model: models.HeroSkill,
+                 as: 'skills' // Добавляем навыки для команды
+               }],
+               through: { attributes: ['position'] }
+             }] 
+           }
+         ]
+       });
 
       const winsCount = await models.Battle.count({
         where: { winnerId: user.id }
@@ -272,26 +266,38 @@ module.exports = function(models) {
     }
   });
 
-  // Start battle endpoint
-  router.post('/start-battle', async (req, res) => {
-    try {
-      const { userId } = req.body;
-      
-      if (!userId) {
-        return res.status(400).json({ error: 'userId is required' });
-      }
 
-      // Здесь будет логика начала битвы
-      // Пока возвращаем заглушку
-      res.json({ 
-        success: true, 
-        message: 'Battle started - implement battle logic here',
-        battleId: Math.random().toString(36).substr(2, 9)
-      });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  });
+
+router.post('/battle/start', async (req, res) => {
+   try {
+     const { userId, team } = req.body
+     
+     // Здесь должна быть логика начала битвы
+     // Пока возвращаем заглушку
+     res.json({ 
+       success: true, 
+       message: 'Battle started - implement battle logic here',
+       battleId: Math.random().toString(36).substr(2, 9)
+     })
+   } catch (error) {
+     res.status(500).json({ error: error.message })
+   }
+ })
+ 
+ router.post('/battle/turn', async (req, res) => {
+   try {
+     const { battleId, action } = req.body
+     
+     // Здесь должна быть логика выполнения хода
+     // Пока возвращаем заглушку
+     res.json({ 
+       success: true, 
+       message: 'Turn executed - implement turn logic here'
+     })
+   } catch (error) {
+     res.status(500).json({ error: error.message })
+   }
+ })
 
   return router;
 };

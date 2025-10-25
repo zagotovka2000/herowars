@@ -2,7 +2,7 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.createTable('Heros', {
+    await queryInterface.createTable('Heroes', {
       id: {
         allowNull: false,
         autoIncrement: true,
@@ -45,6 +45,14 @@ module.exports = {
       rarity: {
         type: Sequelize.STRING
       },
+      mana: {
+        type: Sequelize.INTEGER,
+        defaultValue: 100
+      },
+      maxMana: {
+        type: Sequelize.INTEGER,
+        defaultValue: 100
+      },
       isActive: {
         type: Sequelize.BOOLEAN,
         defaultValue: true
@@ -70,6 +78,6 @@ module.exports = {
     });
   },
   async down(queryInterface, Sequelize) {
-    await queryInterface.dropTable('Heros');
+    await queryInterface.dropTable('Heroes');
   }
 };

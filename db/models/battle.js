@@ -15,6 +15,14 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.ENUM('pending', 'in_progress', 'completed'),
       defaultValue: 'pending'
     },
+    battleState: {
+      type: DataTypes.JSONB,
+      allowNull: true
+    },
+    animationLog: {
+      type: DataTypes.JSONB,
+      allowNull: true
+    },
     player1Id: {
       type: DataTypes.INTEGER,
       allowNull: false,

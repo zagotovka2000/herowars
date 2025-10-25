@@ -9,6 +9,9 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'heroId',
         otherKey: 'teamId'
       });
+      Hero.hasMany(models.HeroSkill, { 
+        foreignKey: 'heroId'
+      });
     }
   }
   Hero.init({
@@ -32,6 +35,14 @@ module.exports = (sequelize, DataTypes) => {
     criticalDamage: DataTypes.FLOAT,
     heroClass: DataTypes.STRING,
     rarity: DataTypes.STRING,
+    mana: {
+      type: DataTypes.INTEGER,
+      defaultValue: 100
+    },
+    maxMana: {
+      type: DataTypes.INTEGER,
+      defaultValue: 100
+    },
     isActive: {
       type: DataTypes.BOOLEAN,
       defaultValue: true

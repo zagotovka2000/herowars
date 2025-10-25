@@ -23,7 +23,7 @@ module.exports = {
         type: Sequelize.INTEGER,
         allowNull: false,
         references: {
-          model: 'Heros',
+          model: 'Heroes',
           key: 'id'
         },
         onUpdate: 'CASCADE',
@@ -43,7 +43,6 @@ module.exports = {
       }
     });
 
-    // Добавляем уникальный индекс чтобы один герой не мог быть в одной команде дважды
     await queryInterface.addIndex('TeamHeroes', ['teamId', 'heroId'], {
       unique: true
     });

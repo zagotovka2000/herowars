@@ -1,4 +1,4 @@
-require('dotenv').config(); // ДОБАВЬТЕ ЭТУ СТРОКУ
+require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const Sequelize = require('sequelize');
@@ -9,7 +9,6 @@ const db = {};
 
 let sequelize;
 
-// Используем только DATABASE_URL
 if (!process.env.DATABASE_URL) {
   console.error('❌ DATABASE_URL is required');
   process.exit(1);
@@ -27,7 +26,6 @@ sequelize = new Sequelize(process.env.DATABASE_URL, {
   } : {}
 });
 
-// Загружаем модели
 fs
   .readdirSync(__dirname)
   .filter(file => {

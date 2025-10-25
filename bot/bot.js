@@ -1,6 +1,6 @@
 require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
-
+const { User, Hero, Team, TeamHero } = require('../db/models');
 class GameBot extends TelegramBot {
   constructor(token, options, services) {
     console.log('🤖 Bot constructor called');
@@ -651,84 +651,100 @@ class GameBot extends TelegramBot {
   }
 
   async handleCallbackQuery(callbackQuery) {
-    const chatId = callbackQuery.message.chat.id;
-    const data = callbackQuery.data;
+   const chatId = callbackQuery.message.chat.id;
+   const data = callbackQuery.data;
+   const user = await this.userService.findByTelegramId(callbackQuery.from.id);
 
-    console.log(`🔘 Callback: ${data} from ${callbackQuery.from.id}`);
+   console.log(`🔘 Callback: ${data} from ${callbackQuery.from.id}`);
 
-    try {
-      if (data.startsWith('upgrade_hero_')) {
-        const heroId = data.replace('upgrade_hero_', '');
-        const user = await this.userService.findByTelegramId(callbackQuery.from.id);
-        
-        const result = await this.heroService.upgradeHero(heroId, user.id);
-        
-        await this.sendMessage(chatId, 
-          `✅ Герой ${result.hero.name} улучшен до уровня ${result.hero.level}!\n` +
-          `❤️ Здоровье: +${result.increases.health}\n` +
-          `⚔️ Атака: +${result.increases.attack}\n` +
-          `🛡️ Защита: +${result.increases.defense}\n` +
-          `🏃 Скорость: +${result.increases.speed}\n` +
-          `💰 Потрачено: ${result.upgradeCost} золота`
-        );
+   try {
+     if (data.startsWith('upgrade_hero_')) {
+       const heroId = data.replace('upgrade_hero_', '');
+       
+       const result = await this.heroService.upgradeHero(heroId, user.id);
+       
+       await this.sendMessage(chatId, 
+         `✅ Герой ${result.hero.name} улучшен до уровня ${result.hero.level}!\n` +
+         `❤️ Здоровье: +${result.increases.health}\n` +
+         `⚔️ Атака: +${result.increases.attack}\n` +
+         `🛡️ Защита: +${result.increases.defense}\n` +
+         `🏃 Скорость: +${result.increases.speed}\n` +
+         `💰 Потрачено: ${result.upgradeCost} золота`
+       );
 
-        await this.answerCallbackQuery(callbackQuery.id, {
-          text: 'Герой улучшен!'
-        });
-      }
-      else if (data === 'buy_hero') {
-        const user = await this.userService.findByTelegramId(callbackQuery.from.id);
-        const result = await this.heroService.createRandomHero(user.id, 500);
+       await this.answerCallbackQuery(callbackQuery.id, {
+         text: 'Герой улучшен!'
+       });
+     }
+     else if (data === 'buy_hero') {
+       const result = await this.heroService.createRandomHero(user.id, 500);
 
-        await this.sendMessage(chatId,
-          `✅ Вы купили нового героя!\n\n` +
-          `🎯 Имя: ${result.hero.name}\n` +
-          `⚔️ Класс: ${result.hero.heroClass}\n` +
-          `❤️ Здоровье: ${result.hero.health}\n` +
-          `⚔️ Атака: ${result.hero.attack}\n` +
-          `🛡️ Защита: ${result.hero.defense}\n` +
-          `🏃 Скорость: ${result.hero.speed}\n\n` +
-          `💰 Потрачено: ${result.cost} золота\n` +
-          `💳 Остаток золота: ${result.newGold}`
-        );
+       await this.sendMessage(chatId,
+         `✅ Вы купили нового героя!\n\n` +
+         `🎯 Имя: ${result.hero.name}\n` +
+         `⚔️ Класс: ${result.hero.heroClass}\n` +
+         `❤️ Здоровье: ${result.hero.health}\n` +
+         `⚔️ Атака: ${result.hero.attack}\n` +
+         `🛡️ Защита: ${result.hero.defense}\n` +
+         `🏃 Скорость: ${result.hero.speed}\n\n` +
+         `💰 Потрачено: ${result.cost} золота\n` +
+         `💳 Остаток золота: ${result.newGold}`
+       );
 
-        await this.answerCallbackQuery(callbackQuery.id, {
-          text: 'Герой куплен!'
-        });
-      }
-      else if (data === 'refresh_team') {
-        await this.handleManageTeam({ chat: { id: chatId }, from: callbackQuery.from });
-        await this.answerCallbackQuery(callbackQuery.id, {
-          text: 'Обновлено!'
-        });
-      }
-      else if (data === 'add_hero_menu') {
-        await this.showAddHeroMenu(chatId, callbackQuery.from.id);
-        await this.answerCallbackQuery(callbackQuery.id);
-      }
-      else if (data === 'remove_hero_menu') {
-        await this.showRemoveHeroMenu(chatId, callbackQuery.from.id);
-        await this.answerCallbackQuery(callbackQuery.id);
-      }
-      else if (data.startsWith('add_hero_')) {
-        const heroId = data.replace('add_hero_', '');
-        await this.addHeroToTeam(chatId, callbackQuery.from.id, heroId);
-        await this.answerCallbackQuery(callbackQuery.id);
-      }
-      else if (data.startsWith('remove_hero_')) {
-        const heroId = data.replace('remove_hero_', '');
-        await this.removeHeroFromTeam(chatId, callbackQuery.from.id, heroId);
-        await this.answerCallbackQuery(callbackQuery.id);
-      }
+       await this.answerCallbackQuery(callbackQuery.id, {
+         text: 'Герой куплен!'
+       });
+     }
+     else if (data === 'refresh_team') {
+       await this.handleManageTeam({ chat: { id: chatId }, from: callbackQuery.from });
+       await this.answerCallbackQuery(callbackQuery.id, {
+         text: 'Обновлено!'
+       });
+     }
+     else if (data === 'add_hero_menu') {
+       await this.showAddHeroMenu(chatId, callbackQuery.from.id);
+       await this.answerCallbackQuery(callbackQuery.id);
+     }
+     // Добавление героя - ДОЛЖНО БЫТЬ НА ТОМ ЖЕ УРОВНЕ, ЧТО И ДРУГИЕ УСЛОВИЯ
+     else if (data.startsWith('add_hero_')) {
+       const heroId = data.split('_')[2];
+       await this.addHeroToTeam(callbackQuery, user, heroId);
+     }
+     // Удаление героя - ДОЛЖНО БЫТЬ НА ТОМ ЖЕ УРОВНЕ
+     else if (data.startsWith('remove_hero_')) {
+       const heroId = data.split('_')[2];
+       await this.removeHeroFromTeam(callbackQuery, user, heroId);
+     }
+     // Меню удаления героя - ДОЛЖНО БЫТЬ НА ТОМ ЖЕ УРОВНЕ
+     else if (data === 'remove_hero_menu') {
+       await this.showRemoveHeroMenu(callbackQuery, user);
+     }
+     // Сброс команды
+     else if (data === 'reset_team') {
+       await this.handleResetTeam({ chat: { id: chatId }, from: callbackQuery.from });
+       await this.answerCallbackQuery(callbackQuery.id, {
+         text: 'Команда сброшена!'
+       });
+     }
+     // Назад в главное меню
+     else if (data === 'back_to_main') {
+       await this.showMainMenu(chatId, user);
+       await this.answerCallbackQuery(callbackQuery.id);
+     }
+     // Управление командой
+     else if (data === 'team_management') {
+       await this.handleManageTeam({ chat: { id: chatId }, from: callbackQuery.from });
+       await this.answerCallbackQuery(callbackQuery.id);
+     }
 
-    } catch (error) {
-      console.error('Callback query error:', error);
-      await this.sendMessage(chatId, `❌ ${error.message}`);
-      await this.answerCallbackQuery(callbackQuery.id, {
-        text: 'Произошла ошибка'
-      });
-    }
-  }
+   } catch (error) {
+     console.error('Callback query error:', error);
+     await this.sendMessage(chatId, `❌ ${error.message}`);
+     await this.answerCallbackQuery(callbackQuery.id, {
+       text: 'Произошла ошибка'
+     });
+   }
+ }
 
   async showAddHeroMenu(chatId, telegramId) {
     try {
@@ -808,37 +824,196 @@ class GameBot extends TelegramBot {
       await this.sendMessage(chatId, `❌ ${error.message}`);
     }
   }
-
-  async addHeroToTeam(chatId, telegramId, heroId) {
-    try {
-      const result = await this.userService.addHeroToTeam(telegramId, heroId);
-      
-      await this.sendMessage(chatId, 
-        `✅ Герой добавлен в команду на позицию ${result.position}!`
-      );
-
-      await this.handleManageTeam({ chat: { id: chatId }, from: { id: telegramId } });
-
-    } catch (error) {
-      console.error('AddHeroToTeam error:', error);
-      await this.sendMessage(chatId, `❌ ${error.message}`);
-    }
-  }
-
-  async removeHeroFromTeam(chatId, telegramId, heroId) {
-    try {
-      await this.userService.removeHeroFromTeam(telegramId, heroId);
-      
-      await this.sendMessage(chatId, '✅ Герой удален из команды!');
-
-      await this.handleManageTeam({ chat: { id: chatId }, from: { id: telegramId } });
-
-    } catch (error) {
-      console.error('RemoveHeroFromTeam error:', error);
-      await this.sendMessage(chatId, `❌ ${error.message}`);
-    }
-  }
-
+  async showTeamManagement(ctx, user) {
+   try {
+     const teamInfo = await this.userService.getTeamManagementInfo(user.id);
+     
+     console.log('🔍 DEBUG TeamManagementInfo for display:', teamInfo);
+     
+     let message = `🏆 Управление командой\n\n`;
+     
+     // Всегда показываем текущее состояние команды
+     message += `👥 Герои в команде (${teamInfo.heroesCount}/5):\n\n`;
+     
+     if (teamInfo.heroesCount === 0) {
+       message += `❌ В вашей команде пока нет героев.\n`;
+     } else {
+       teamInfo.heroes.forEach((hero, index) => {
+         message += `${index + 1}. ${hero.name} (${hero.heroClass})\n`;
+         message += `   ⚔️ Атака: ${hero.attack} ❤️ Здоровье: ${hero.health}\n`;
+         message += `   🛡️ Защита: ${hero.defense} 🏃 Скорость: ${hero.speed}\n\n`;
+       });
+     }
+     
+     const keyboard = [];
+     
+     // Кнопки добавления/удаления
+     if (teamInfo.heroesCount < 5) {
+       keyboard.push([{ text: '➕ Добавить героя', callback_data: 'add_hero_menu' }]);
+     }
+     
+     if (teamInfo.heroesCount > 0) {
+       keyboard.push([{ text: '➖ Удалить героя', callback_data: 'remove_hero_menu' }]);
+     }
+     
+     keyboard.push([{ text: '🔄 Обновить', callback_data: 'refresh_team' }]);
+     keyboard.push([{ text: '🎯 Сбросить команду', callback_data: 'reset_team' }]);
+     keyboard.push([{ text: '⬅️ Назад', callback_data: 'back_to_main' }]);
+     
+     if (ctx.updateType === 'callback_query') {
+       await ctx.editMessageText(message, { 
+         reply_markup: { inline_keyboard: keyboard },
+         parse_mode: 'Markdown'
+       });
+     } else {
+       await ctx.reply(message, {
+         reply_markup: { inline_keyboard: keyboard },
+         parse_mode: 'Markdown'
+       });
+     }
+   } catch (error) {
+     console.error('Error showing team management:', error);
+     await ctx.reply('❌ Произошла ошибка при загрузке команды');
+   }
+ }
+ async addHeroToTeam(callbackQuery, user, heroId) {
+   try {
+     const chatId = callbackQuery.message.chat.id;
+     console.log('🔍 DEBUG: Adding hero to team:', { userId: user.id, heroId });
+     
+     const result = await this.userService.addHeroToTeam(user.id, heroId);
+     
+     if (result.success) {
+       // Обновляем сообщение с управлением командой
+       await this.handleManageTeam({ 
+         chat: { id: chatId }, 
+         from: { id: user.telegramId } 
+       });
+       await this.answerCallbackQuery(callbackQuery.id, {
+         text: 'Герой добавлен в команду!'
+       });
+     } else {
+       await this.answerCallbackQuery(callbackQuery.id, { 
+         text: result.message || '❌ Не удалось добавить героя',
+         show_alert: true 
+       });
+     }
+   } catch (error) {
+     console.error('AddHeroToTeam error:', error);
+     await this.answerCallbackQuery(callbackQuery.id, { 
+       text: '❌ Ошибка при добавлении героя',
+       show_alert: true 
+     });
+   }
+ }
+ 
+ async showRemoveHeroMenu(callbackQuery, user) {
+   try {
+     const chatId = callbackQuery.message.chat.id;
+     const teamInfo = await this.userService.getTeamManagementInfo(user.id);
+     
+     if (teamInfo.heroesCount === 0) {
+       await this.answerCallbackQuery(callbackQuery.id, { 
+         text: '❌ В команде нет героев для удаления',
+         show_alert: true 
+       });
+       return;
+     }
+     
+     let message = `➖ Удаление героев из команды\n\n`;
+     message += `Выберите героя для удаления:\n\n`;
+     
+     const keyboard = [];
+     
+     teamInfo.heroes.forEach(hero => {
+       keyboard.push([{
+         text: `${hero.name} (${hero.heroClass}) - Позиция ${hero.position}`,
+         callback_data: `remove_hero_${hero.id}`
+       }]);
+     });
+     
+     keyboard.push([{ text: '⬅️ Назад', callback_data: 'team_management' }]);
+     
+     await this.editMessageText(chatId, callbackQuery.message.message_id, message, {
+       reply_markup: { inline_keyboard: keyboard }
+     });
+     
+     await this.answerCallbackQuery(callbackQuery.id);
+   } catch (error) {
+     console.error('Error showing remove hero menu:', error);
+     await this.answerCallbackQuery(callbackQuery.id, { 
+       text: '❌ Ошибка при загрузке меню удаления',
+       show_alert: true 
+     });
+   }
+ }
+ async removeHeroFromTeam(callbackQuery, user, heroId) {
+   try {
+     const result = await this.userService.removeHeroFromTeam(user.id, heroId);
+     
+     if (result.success) {
+       // Обновляем сообщение с управлением командой
+       await this.handleManageTeam({ 
+         chat: { id: callbackQuery.message.chat.id }, 
+         from: { id: user.telegramId } 
+       });
+       await this.answerCallbackQuery(callbackQuery.id, {
+         text: result.message
+       });
+     } else {
+       await this.answerCallbackQuery(callbackQuery.id, { 
+         text: result.message,
+         show_alert: true 
+       });
+     }
+   } catch (error) {
+     console.error('RemoveHeroFromTeam error:', error);
+     await this.answerCallbackQuery(callbackQuery.id, { 
+       text: '❌ Ошибка при удалении героя',
+       show_alert: true 
+     });
+   }
+ }
+ 
+ 
+ async showRemoveHeroMenu(ctx, user) {
+   try {
+     const teamInfo = await this.userService.getTeamManagementInfo(user.id);
+     
+     if (teamInfo.heroesCount === 0) {
+       await ctx.answerCallbackQuery({ 
+         text: '❌ В команде нет героев для удаления',
+         show_alert: true 
+       });
+       return;
+     }
+     
+     let message = `➖ Удаление героев из команды\n\n`;
+     message += `Выберите героя для удаления:\n\n`;
+     
+     const keyboard = [];
+     
+     teamInfo.heroes.forEach(hero => {
+       keyboard.push([{
+         text: `${hero.name} (${hero.heroClass}) - Позиция ${hero.position}`,
+         callback_data: `remove_hero_${hero.id}`
+       }]);
+     });
+     
+     keyboard.push([{ text: '⬅️ Назад', callback_data: 'team_management' }]);
+     
+     await ctx.editMessageText(message, {
+       reply_markup: { inline_keyboard: keyboard }
+     });
+   } catch (error) {
+     console.error('Error showing remove hero menu:', error);
+     await ctx.answerCallbackQuery({ 
+       text: '❌ Ошибка при загрузке меню удаления',
+       show_alert: true 
+     });
+   }
+ }
+ 
   async handleWebAppData(msg) {
     const data = JSON.parse(msg.web_app_data.data);
     const chatId = msg.chat.id;
