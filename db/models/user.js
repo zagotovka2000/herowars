@@ -1,39 +1,40 @@
 'use strict';
-const { Model } = require('sequelize');
+const {
+  Model
+} = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
   class User extends Model {
+    /**
+     * Helper method for defining associations.
+     * This method is not a part of Sequelize lifecycle.
+     * The `models/index` file will call this method automatically.
+     */
     static associate(models) {
-      User.hasMany(models.Hero, { foreignKey: 'userId' });
-      User.hasMany(models.Team, { foreignKey: 'userId' });
+      User.belongsTo(models.Guild, { foreignKey: 'guildId' });
+      User.hasOne(models.Guild, { foreignKey: 'leaderId', as: 'GuildLeadership' }); 
+      User.hasMany(models.Card, { foreignKey: 'userId' });
+      User.hasMany(models.Inventory, { foreignKey: 'userId' });
+      User.hasMany(models.DailyReward, { foreignKey: 'userId' });
+      User.hasMany(models.FarmingSession, { foreignKey: 'userId' });
       User.hasMany(models.Battle, { foreignKey: 'player1Id' });
       User.hasMany(models.Battle, { foreignKey: 'player2Id' });
       User.hasMany(models.Battle, { foreignKey: 'winnerId' });
-    }
+      User.hasOne(models.GuildMember, { foreignKey: 'userId' });
+   }
   }
   User.init({
-    telegramId: {
-      type: DataTypes.BIGINT,
-      unique: true,
-      allowNull: false
-    },
+    telegramId: DataTypes.BIGINT,
     username: DataTypes.STRING,
-    experience: {
-      type: DataTypes.INTEGER,
-      defaultValue: 0
-    },
-    level: {
-      type: DataTypes.INTEGER,
-      defaultValue: 1
-    },
-    gold: {
-      type: DataTypes.INTEGER,
-      defaultValue: 1000
-    },
-    gems: {
-      type: DataTypes.INTEGER,
-      defaultValue: 50
-    },
-    lastBattleAt: DataTypes.DATE
+    gameNik: DataTypes.STRING,
+    level: DataTypes.INTEGER,
+    experience: DataTypes.INTEGER,
+    energy: DataTypes.INTEGER,
+    maxEnergy: DataTypes.INTEGER,
+    lastEnergyUpdate: DataTypes.DATE,
+    gold: DataTypes.INTEGER,
+    crystals: DataTypes.INTEGER,
+    guildId: DataTypes.UUID,
+    rank: DataTypes.JSON
   }, {
     sequelize,
     modelName: 'User',

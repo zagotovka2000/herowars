@@ -4,28 +4,16 @@
    "description": "Telegram bot for herowarsbot",
    "main": "server.js",
    "scripts": {
-      "start": "NODE_ENV=development USE_WEBHOOK=false node server.js",
-      "dev": "NODE_ENV=development USE_WEBHOOK=false nodemon server.js",
-      "db:migrate": "npx sequelize-cli db:migrate",
-      "db:seed": "npx sequelize-cli db:seed:all",
-      "webhook:set": "node webhook-setup.js set",
-      "webhook:remove": "node webhook-setup.js remove",
-      "webhook:info": "node webhook-setup.js info"
+      "start": "node server.js"
    },
    "dependencies": {
-      "compression": "^1.7.4",
       "cors": "^2.8.5",
       "dotenv": "^16.3.1",
       "express": "^4.18.2",
-      "express-rate-limit": "^7.4.1",
-      "helmet": "^7.1.0",
-      "morgan": "^1.10.0",
       "node-telegram-bot-api": "^0.64.0",
       "path": "^0.12.7",
       "pg": "^8.16.3",
-      "pg-boss": "^8.4.1",
       "pg-hstore": "^2.3.4",
-      "pm2": "^6.0.13",
       "sequelize": "^6.37.7",
       "sequelize-cli": "^6.6.3"
    },
