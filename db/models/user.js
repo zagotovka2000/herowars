@@ -34,7 +34,12 @@ module.exports = (sequelize, DataTypes) => {
     gold: DataTypes.INTEGER,
     crystals: DataTypes.INTEGER,
     guildId: DataTypes.UUID,
-    rank: DataTypes.JSON
+    rank: DataTypes.JSON,
+    trophy: DataTypes.INTEGER, // Для рейтинга в PvP
+    arenaRating: DataTypes.INTEGER,
+    campaignProgress: DataTypes.JSON, // Текущий прогресс в кампании
+    dailyQuestsRefresh: DataTypes.DATE, // Когда обновляются ежедневные квесты
+    freeChestAvailableAt: DataTypes.DATE, // Когда доступен бесплатный сундук
   }, {
     sequelize,
     modelName: 'User',

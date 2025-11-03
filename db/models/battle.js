@@ -29,7 +29,14 @@ module.exports = (sequelize, DataTypes) => {
     turnsCount: DataTypes.INTEGER,
     duration: DataTypes.INTEGER,
     trophyChange: DataTypes.INTEGER,
-    finishedAt: DataTypes.DATE
+    finishedAt: DataTypes.DATE,
+    battleType: DataTypes.ENUM('pvp', 'guild_war', 'campaign', 'training'), // Расширенный тип
+    campaignLevelId: DataTypes.UUID, // Для битв в кампании
+    player1DeckSnapshot: DataTypes.JSON, // Снимок колоды на начало боя
+    player2DeckSnapshot: DataTypes.JSON,
+    turns: DataTypes.JSON, // Подробная история ходов
+    superAttackUsage: DataTypes.JSON, // Использование супер атак
+    rewards: DataTypes.JSON, // Награды за бой
   }, {
     sequelize,
     modelName: 'Battle',

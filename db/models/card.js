@@ -27,7 +27,12 @@ module.exports = (sequelize, DataTypes) => {
     experience: DataTypes.INTEGER,
     isInDeck: DataTypes.BOOLEAN,
     slotPosition: DataTypes.INTEGER,
-    equippedItems: DataTypes.JSON
+    equippedItems: DataTypes.JSON,
+    maxHealth: DataTypes.INTEGER, // Максимальное здоровье (отсутствует)
+    currentSuperMeter: DataTypes.INTEGER, // Текущая шкала супер удара (0-100)
+    baseSuperMultiplier: DataTypes.FLOAT, // Базовый множитель супер атаки
+    abilities: DataTypes.JSON, // Способности карты
+    battleStats: DataTypes.JSON, // {battles: 0, wins: 0, superAttacks: 0}
   }, {
     sequelize,
     modelName: 'Card',

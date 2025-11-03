@@ -11,13 +11,21 @@ module.exports = {
       },
       userId: {
         type: Sequelize.UUID,
-        allowNull: false
+        allowNull: false,
+        references: {
+          model: 'Users',
+          key: 'id'
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'CASCADE'
       },
       name: {
-        type: Sequelize.STRING
+        type: Sequelize.STRING,
+        allowNull: false
       },
       color: {
-        type: Sequelize.ENUM('gray', 'green', 'blue', 'orange', 'red')
+        type: Sequelize.ENUM('gray', 'green', 'blue', 'orange', 'red'),
+        defaultValue: 'gray'
       },
       rank: {
         type: Sequelize.INTEGER,
@@ -43,11 +51,23 @@ module.exports = {
         type: Sequelize.INTEGER,
         defaultValue: 100
       },
+      maxHealth: {
+        type: Sequelize.INTEGER,
+        defaultValue: 100
+      },
       superMeter: {
         type: Sequelize.INTEGER,
         defaultValue: 0
       },
+      currentSuperMeter: {
+        type: Sequelize.INTEGER,
+        defaultValue: 0
+      },
       superAttackMultiplier: {
+        type: Sequelize.FLOAT,
+        defaultValue: 1.5
+      },
+      baseSuperMultiplier: {
         type: Sequelize.FLOAT,
         defaultValue: 1.5
       },
@@ -67,33 +87,43 @@ module.exports = {
         type: Sequelize.INTEGER
       },
       equippedItems: {
-        type: Sequelize.JSON
+        type: Sequelize.JSON,
+        defaultValue: []
+      },
+      abilities: {
+        type: Sequelize.JSON,
+        defaultValue: []
+      },
+      battleStats: {
+        type: Sequelize.JSON,
+        defaultValue: {
+          battles: 0,
+          wins: 0,
+          losses: 0,
+          superAttacks: 0,
+          totalDamage: 0,
+          totalHealing: 0
+        }
       },
       createdAt: {
         allowNull: false,
-        type: Sequelize.DATE
+        type: Sequelize.DATE,
+        defaultValue: Sequelize.NOW
       },
       updatedAt: {
         allowNull: false,
-        type: Sequelize.DATE
+        type: Sequelize.DATE,
+        defaultValue: Sequelize.NOW
       }
     });
 
-    // Добавляем внешний ключ
-    await queryInterface.addConstraint('Cards', {
-      fields: ['userId'],
-      type: 'foreign key',
-      name: 'fk_card_user',
-      references: {
-        table: 'Users',
-        field: 'id'
-      },
-      onDelete: 'CASCADE',
-      onUpdate: 'CASCADE'
-    });
+    // Добавляем индексы для производительности
+    await queryInterface.addIndex('Cards', ['userId']);
+    await queryInterface.addIndex('Cards', ['color']);
+    await queryInterface.addIndex('Cards', ['isInDeck']);
   },
+
   async down(queryInterface, Sequelize) {
-    await queryInterface.removeConstraint('Cards', 'fk_card_user');
     await queryInterface.dropTable('Cards');
   }
 };
