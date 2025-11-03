@@ -50,8 +50,7 @@ module.exports = {
         type: Sequelize.UUID
       },
       rank: {
-        type: Sequelize.ENUM('novice', 'warrior', 'champion', 'master', 'legend'),
-        defaultValue: 'novice' // Добавлено значение по умолчанию
+        type: Sequelize.JSON,
       },
       createdAt: {
         allowNull: false,

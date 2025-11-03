@@ -4,7 +4,9 @@
    "description": "Telegram bot for herowarsbot",
    "main": "server.js",
    "scripts": {
-      "start": "node server.js"
+      "start": "node server.js",
+      "seed": "npx sequelize-cli db:seed:all",
+      "seed:undo": "npx sequelize-cli db:seed:undo:all"
    },
    "dependencies": {
       "cors": "^2.8.5",
