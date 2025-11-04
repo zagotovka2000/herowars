@@ -1,72 +1,69 @@
-// routes/game.js
-const express = require('express');
-const router = express.Router();
-const { User, Card, Campaign, Quest } = require('./db/models');
+// server.js
+require('dotenv').config();
+const app = require('./app'); // импортируем приложение из app.js
+const db = require('./db/models');
 
-// Получить данные пользователя
-router.get('/user/:userId', async (req, res) => {
-  try {
-    const user = await User.findByPk(req.params.userId, {
-      include: [Card, Quest]
-    });
-    res.json(user);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+const PORT = process.env.PORT || 3000;
 
-// Начать кампанию
-router.post('/campaign/start', async (req, res) => {
+// Функция для запуска сервера
+async function startServer() {
   try {
-    const { userId, campaignId } = req.body;
-    
-    const user = await User.findByPk(userId);
-    const campaign = await Campaign.findByPk(campaignId);
-    
-    if (user.energy < campaign.energyCost) {
-      return res.status(400).json({ error: 'Недостаточно энергии' });
-    }
-    
-    // Логика прохождения кампании
-    await user.decrement('energy', { by: campaign.energyCost });
-    await user.increment('gold', { by: campaign.goldReward });
-    await user.increment('experience', { by: campaign.expReward });
-    
-    // Шанс выпадения предметов
-    if (Math.random() < campaign.itemDropChance) {
-      // Добавляем предмет в инвентарь
-    }
-    
-    res.json({
-      success: true,
-      rewards: {
-        gold: campaign.goldReward,
-        exp: campaign.expReward,
-        items: [] // полученные предметы
+    // Проверяем подключение к базе данных
+    await db.sequelize.authenticate();
+    console.log('✅ Подключение к базе данных установлено');
+
+    // Синхронизируем модели с базой данных
+    await db.sequelize.sync({    logging: false });
+    console.log('✅ Модели базы данных синхронизированы');
+
+    // Запускаем сервер
+    app.listen(PORT, () => {
+      console.log('🎮 =================================');
+      console.log(`🚀 Сервер HeroWarsBot запущен!`);
+      console.log(`📍 Порт: ${PORT}`);
+      console.log(`🌍 Окружение: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`⏰ Время запуска: ${new Date().toLocaleString()}`);
+      console.log('🎮 =================================');
+      
+      // Дополнительная информация для разработки
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`📊 Проверка здоровья: http://localhost:${PORT}/health`);
+        console.log(`🎯 Game API: http://localhost:${PORT}/api/game`);
+        console.log(`🏠 Главная страница: http://localhost:${PORT}/`);
       }
     });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
-// Начать экспедицию
-router.post('/expedition/start', async (req, res) => {
+  } catch (error) {
+    console.error('❌ Ошибка запуска сервера:');
+    console.error('🔧 Детали ошибки:', error.message);
+    process.exit(1);
+  }
+}
+
+// Обработка graceful shutdown
+process.on('SIGINT', async () => {
+  console.log('\n🔻 Получен сигнал SIGINT, завершаем работу...');
   try {
-    const { userId, cardIds, duration } = req.body;
-    
-    const expedition = await Expedition.create({
-      userId,
-      cardIds,
-      duration,
-      completionTime: new Date(Date.now() + duration * 60000), // duration в минутах
-      rewards: calculateExpeditionRewards(cardIds, duration)
-    });
-    
-    res.json(expedition);
+    await db.sequelize.close();
+    console.log('✅ Подключение к базе данных закрыто');
+    process.exit(0);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('❌ Ошибка при закрытии подключения:', error);
+    process.exit(1);
   }
 });
 
-module.exports = router;
+process.on('SIGTERM', async () => {
+  console.log('\n🔻 Получен сигнал SIGTERM, завершаем работу...');
+  try {
+    await db.sequelize.close();
+    console.log('✅ Подключение к базе данных закрыто');
+    process.exit(0);
+  } catch (error) {
+    console.error('❌ Ошибка при закрытии подключения:', error);
+    process.exit(1);
+  }
+});
+
+// Запускаем сервер
+startServer();
