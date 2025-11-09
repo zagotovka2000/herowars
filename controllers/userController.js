@@ -5,11 +5,39 @@ const { User, Card, Inventory, QuestProgress, DailyReward } = require('../db/mod
  * Логика: Получение основных данных пользователя, статистики, прогресса
  */
 const getUserProfile = async (req, res) => {
-  try {
-    // TODO: Получить пользователя с включенными связанными данными
-    // Рассчитать текущую энергию на основе lastEnergyUpdate
-    // Вернуть статистику игрока
-  } catch (error) {
+   try {
+      const { telegramId } = req.params;
+      console.log('🔍 Поиск пользователя по telegramId:', telegramId);
+      
+      // ✅ ПРАВИЛЬНЫЙ ПОИСК: по telegramId (BIGINT)
+      const user = await User.findOne({
+         where: { telegramId }  });
+  
+      console.log('📊 Результат поиска:', user ? 'Найден' : 'Не найден');
+      if (!user) {
+        return res.status(404).json({ error: 'Пользователь не найден' });
+      }
+  
+      // Форматируем ответ для фронтенда
+      const userData = {
+        id: user.id,
+        username: user.username || user.gameNik,
+        gameNik: user.gameNik,
+        level: user.level || 1,
+        experience: user.experience || 0,
+        energy: user.energy || 100,
+        maxEnergy: user.maxEnergy || 100,
+        gold: user.gold || 0,
+        gems: user.crystals || 0, // crystals -> gems для фронтенда
+        guild: null,
+        cards: user.Cards || [],
+        lastEnergyUpdate: user.lastEnergyUpdate,
+        campaignProgress: user.campaignProgress || {},
+        arenaRating: user.arenaRating || 0
+      };
+  
+      res.json(userData);
+    } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
@@ -19,11 +47,31 @@ const getUserProfile = async (req, res) => {
  * Логика: Обновление ника, настроек, аватара
  */
 const updateUserProfile = async (req, res) => {
-  try {
-    // TODO: Валидация данных
-    // Обновление разрешенных полей (gameNik, настройки)
-    // Проверка уникальности ника
-  } catch (error) {
+   try {
+      const { userId } = req.params;
+      console.log('======update user======updateUserProfile', user)
+      const updates = req.body;
+  
+      const user = await User.findByPk(userId);
+      const users = await User.findAll();
+      console.log('======users', users);
+      if (!user) {
+        return res.status(404).json({ error: 'Пользователь не найден' });
+      }
+  
+      // Разрешенные поля для обновления
+      const allowedUpdates = ['gameNik', 'energy', 'gold', 'crystals', 'experience', 'level', 'campaignProgress'];
+      const filteredUpdates = {};
+      
+      Object.keys(updates).forEach(key => {
+        if (allowedUpdates.includes(key)) {
+          filteredUpdates[key] = updates[key];
+        }
+      });
+  
+      await user.update(filteredUpdates);
+      res.json({ success: true, user: filteredUpdates });
+    }catch (error) {
     res.status(500).json({ error: error.message });
   }
 };

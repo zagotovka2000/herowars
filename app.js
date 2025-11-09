@@ -6,6 +6,10 @@ const app = express();
 
 // Middleware
 app.use(cors());
+app.use(cors({
+   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+   credentials: true
+ }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -20,6 +24,7 @@ app.use('/api/shop', require('./routes/shopRoutes'));
 app.use('/api/daily-rewards', require('./routes/daylyRewardRoutes'));
 app.use('/api/expeditions', require('./routes/expeditionRoutes'));
 app.use('/api/free-chest', require('./routes/freeChestRoutes'));
+
 
 // Базовая проверка работы
 app.get('/health', (req, res) => {

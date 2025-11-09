@@ -11,7 +11,8 @@ const {
 } = require('../controllers/userController');
 
 // Профиль пользователя
-router.get('/:userId', getUserProfile);
+router.get('/telegram/:telegramId', getUserProfile); 
+router.get('/:userId/profile', getUserProfile); 
 router.put('/:userId', updateUserProfile);
 
 // Карты пользователя

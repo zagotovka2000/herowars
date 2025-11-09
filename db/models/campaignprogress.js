@@ -15,6 +15,11 @@ module.exports = (sequelize, DataTypes) => {
       CampaignProgress.belongsTo(models.CampaignLevel, { foreignKey: 'levelId' });    }
   }
   CampaignProgress.init({
+   id: {
+      type: DataTypes.UUID,
+      primaryKey: true,
+      defaultValue: DataTypes.UUIDV4
+    },
    userId: DataTypes.UUID,
    campaignId: DataTypes.UUID,
    levelId: DataTypes.UUID,
