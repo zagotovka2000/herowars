@@ -1,9 +1,21 @@
-// server.js
 require('dotenv').config();
-const app = require('./app'); // импортируем приложение из app.js
-const db = require('./db/models');
+const app = require('./app'); // Импорт Express приложения
+const db = require('./db/models'); // Импорт моделей базы данных
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000; // Порт из env или 3000 по умолчанию
+
+// Функция для graceful shutdown (убрали дублирование)
+const gracefulShutdown = async (signal) => {
+  console.log(`\n🔻 Получен сигнал ${signal}, завершаем работу...`);
+  try {
+    await db.sequelize.close();
+    console.log('✅ Подключение к базе данных закрыто');
+    process.exit(0);
+  } catch (error) {
+    console.error('❌ Ошибка при закрытии подключения:', error);
+    process.exit(1);
+  }
+};
 
 // Функция для запуска сервера
 async function startServer() {
@@ -13,7 +25,7 @@ async function startServer() {
     console.log('✅ Подключение к базе данных установлено');
 
     // Синхронизируем модели с базой данных
-    await db.sequelize.sync({    logging: false });
+    await db.sequelize.sync({ logging: false });
     console.log('✅ Модели базы данных синхронизированы');
 
     // Запускаем сервер
@@ -40,30 +52,9 @@ async function startServer() {
   }
 }
 
-// Обработка graceful shutdown
-process.on('SIGINT', async () => {
-  console.log('\n🔻 Получен сигнал SIGINT, завершаем работу...');
-  try {
-    await db.sequelize.close();
-    console.log('✅ Подключение к базе данных закрыто');
-    process.exit(0);
-  } catch (error) {
-    console.error('❌ Ошибка при закрытии подключения:', error);
-    process.exit(1);
-  }
-});
-
-process.on('SIGTERM', async () => {
-  console.log('\n🔻 Получен сигнал SIGTERM, завершаем работу...');
-  try {
-    await db.sequelize.close();
-    console.log('✅ Подключение к базе данных закрыто');
-    process.exit(0);
-  } catch (error) {
-    console.error('❌ Ошибка при закрытии подключения:', error);
-    process.exit(1);
-  }
-});
+// Обработка graceful shutdown (убрали дублирование кода)
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
 // Запускаем сервер
 startServer();

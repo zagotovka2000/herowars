@@ -53,8 +53,6 @@ const updateUserProfile = async (req, res) => {
       const updates = req.body;
   
       const user = await User.findByPk(userId);
-      const users = await User.findAll();
-      console.log('======users', users);
       if (!user) {
         return res.status(404).json({ error: 'Пользователь не найден' });
       }

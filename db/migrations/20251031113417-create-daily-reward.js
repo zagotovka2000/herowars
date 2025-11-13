@@ -1,26 +1,38 @@
 'use strict';
-/** @type {import('sequelize-cli').Migration} */
+
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable('DailyRewards', {
       id: {
-        allowNull: false,
-        primaryKey: true,
         type: Sequelize.UUID,
-        defaultValue: Sequelize.UUIDV4
+        defaultValue: Sequelize.UUIDV4,
+        primaryKey: true
       },
       userId: {
         type: Sequelize.UUID,
-        allowNull: false
+        allowNull: false,
+        references: {
+          model: 'Users',
+          key: 'id'
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'CASCADE'
       },
       rewardType: {
-        type: Sequelize.ENUM('gray_card', 'green_card', 'blue_card', 'energy', 'gold', 'crystals')
+        type: Sequelize.ENUM('gray', 'green', 'blue', 'energy', 'gold', 'crystals'),
+        allowNull: false
       },
-      claimedAt: {
-        type: Sequelize.DATE
+      lastClaimedAt: {
+        type: Sequelize.DATE,
+        allowNull: true
       },
       nextAvailableAt: {
-        type: Sequelize.DATE
+        type: Sequelize.DATE,
+        allowNull: true
+      },
+      claimCount: {
+        type: Sequelize.INTEGER,
+        defaultValue: 0
       },
       streak: {
         type: Sequelize.INTEGER,
@@ -36,20 +48,14 @@ module.exports = {
       }
     });
 
-    await queryInterface.addConstraint('DailyRewards', {
-      fields: ['userId'],
-      type: 'foreign key',
-      name: 'fk_dailyreward_user',
-      references: {
-        table: 'Users',
-        field: 'id'
-      },
-      onDelete: 'CASCADE',
-      onUpdate: 'CASCADE'
+    // Добавляем композитный уникальный индекс
+    await queryInterface.addIndex('DailyRewards', ['userId', 'rewardType'], {
+      unique: true,
+      name: 'daily_rewards_user_reward_unique'
     });
   },
+
   async down(queryInterface, Sequelize) {
-    await queryInterface.removeConstraint('DailyRewards', 'fk_dailyreward_user');
     await queryInterface.dropTable('DailyRewards');
   }
 };
