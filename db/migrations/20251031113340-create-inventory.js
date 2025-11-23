@@ -11,15 +11,28 @@ module.exports = {
       },
       userId: {
         type: Sequelize.UUID,
-        allowNull: false
+        allowNull: false,
+        references: {
+         model: 'Users',
+         key: 'id'
+       },
+       onUpdate: 'CASCADE',
+       onDelete: 'CASCADE'
       },
       itemId: {
         type: Sequelize.UUID,
-        allowNull: false
+        allowNull: false,
+        references: {
+         model: 'Items',
+         key: 'id'
+       },
+       onUpdate: 'CASCADE',
+       onDelete: 'CASCADE'
       },
       quantity: {
         type: Sequelize.INTEGER,
-        defaultValue: 1
+        defaultValue: 1,
+        allowNull: false  
       },
       createdAt: {
         allowNull: false,
@@ -31,42 +44,14 @@ module.exports = {
       }
     });
 
-    // Добавляем внешние ключи
-    await queryInterface.addConstraint('Inventories', {
-      fields: ['userId'],
-      type: 'foreign key',
-      name: 'fk_inventory_user',
-      references: {
-        table: 'Users',
-        field: 'id'
-      },
-      onDelete: 'CASCADE',
-      onUpdate: 'CASCADE'
-    });
-
-    await queryInterface.addConstraint('Inventories', {
-      fields: ['itemId'],
-      type: 'foreign key',
-      name: 'fk_inventory_item',
-      references: {
-        table: 'Items',
-        field: 'id'
-      },
-      onDelete: 'CASCADE',
-      onUpdate: 'CASCADE'
-    });
-
-    // Добавляем уникальный индекс для пары user-item
-    await queryInterface.addIndex('Inventories', {
-      fields: ['userId', 'itemId'],
-      unique: true,
-      name: 'inventory_user_item_unique'
+    await queryInterface.addIndex('Inventories', ['userId']);
+    await queryInterface.addIndex('Inventories', ['itemId']);
+    await queryInterface.addIndex('Inventories', ['userId', 'itemId'], {
+      unique: true
     });
   },
+
   async down(queryInterface, Sequelize) {
-    await queryInterface.removeConstraint('Inventories', 'fk_inventory_user');
-    await queryInterface.removeConstraint('Inventories', 'fk_inventory_item');
-    await queryInterface.removeIndex('Inventories', 'inventory_user_item_unique');
     await queryInterface.dropTable('Inventories');
   }
 };

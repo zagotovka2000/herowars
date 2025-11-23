@@ -16,8 +16,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/battles', require('./routes/battleRoutes'));
 app.use('/api/campaigns', require('./routes/campaignRoutes'));
+app.use('/api/craft', require('./routes/craftRoutes'));
 app.use('/api/cards', require('./routes/cardRoutes'));
-
 app.use('/api/guilds', require('./routes/guildRoutes'));
 app.use('/api/quests', require('./routes/questRoutes'));
 app.use('/api/farming', require('./routes/farmingRoutes'));
@@ -25,6 +25,7 @@ app.use('/api/shop', require('./routes/shopRoutes'));
 app.use('/api/daily-rewards', require('./routes/dailyRewardRoutes'));
 app.use('/api/expeditions', require('./routes/expeditionRoutes'));
 app.use('/api/free-chest', require('./routes/freeChestRoutes'));
+app.use('/api/inventory', require('./routes/inventoryRoutes'));
 
 // Базовая проверка работы
 app.get('/health', (req, res) => {

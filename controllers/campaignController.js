@@ -1,5 +1,6 @@
-const { Campaign, User, CampaignLevel, CampaignProgress } = require('../db/models');
+const { Campaign, User, CampaignLevel, CampaignProgress, Item, Inventory } = require('../db/models');
 const { Op } = require('sequelize');
+const { getRandomGrayItem } = require('./inventoryController');
 
 // Получить все кампании с уровнями
 const getCampaigns = async (req, res) => {
@@ -92,11 +93,20 @@ const getCampaignProgress = async (req, res) => {
         {
           model: CampaignLevel
         }
-      ],
-      order: [
-        [Campaign, 'order', 'ASC'],
-        [CampaignLevel, 'levelNumber', 'ASC']
       ]
+    });
+
+    // Сортируем вручную вместо order в запросе
+    progress.sort((a, b) => {
+      if (a.Campaign && b.Campaign) {
+        if (a.Campaign.order !== b.Campaign.order) {
+          return a.Campaign.order - b.Campaign.order;
+        }
+      }
+      if (a.CampaignLevel && b.CampaignLevel) {
+        return a.CampaignLevel.levelNumber - b.CampaignLevel.levelNumber;
+      }
+      return 0;
     });
 
     // Группируем прогресс по кампаниям для удобства на фронтенде
@@ -144,14 +154,17 @@ const getCampaignProgress = async (req, res) => {
 const startCampaignLevel = async (req, res) => {
   try {
     const { userId, levelId } = req.body;
+    console.log(" ============= userId, levelId:", 1111111111111111)
+    console.log(" ============= userId, levelId:", userId, levelId)
     
-    console.log('🎯 Начало уровня кампании:', { userId, levelId });
-
     if (!userId || !levelId) {
-      return res.status(400).json({ error: 'User ID and Level ID are required' });
-    }
-
-    const user = await User.findByPk(userId);
+       return res.status(400).json({ error: 'User ID and Level ID are required' });
+      }
+      
+      console.log(" ============= userId, levelId:", 22222222222222)
+      const user = await User.findByPk(userId);
+      console.log(" ============= userId, levelId:", 33333333333333)
+    console.log(" ============= user:", user)
     const campaignLevel = await CampaignLevel.findByPk(levelId, {
       include: [{
         model: Campaign
@@ -233,11 +246,12 @@ const startCampaignLevel = async (req, res) => {
   }
 };
 
-// Завершить уровень кампании и получить награду
+// Завершить уровень кампании и выдать награды
 const claimCampaignReward = async (req, res) => {
+   console.log('claimCampaignReward============');
   try {
     const { levelId } = req.params;
-    const { userId, stars, score, battleId } = req.body;
+    const { userId, stars, score } = req.body;
     
     console.log('🏆 Завершение уровня кампании:', { userId, levelId, stars, score });
 
@@ -245,78 +259,171 @@ const claimCampaignReward = async (req, res) => {
       return res.status(400).json({ error: 'User ID and Level ID are required' });
     }
 
-    // Находим прогресс (БЕЗ АЛИАСОВ)
-    const progress = await CampaignProgress.findOne({
-      where: { userId, levelId },
-      include: [{
-        model: CampaignLevel
-      }]
-    });
+    const transaction = await CampaignProgress.sequelize.transaction();
+    console.log(" claimCampaignReward =============transaction:", transaction)
+    
+    try {
+      // Находим прогресс
+      const progress = await CampaignProgress.findOne({
+        where: { userId, levelId },
+        include: [{
+          model: CampaignLevel
+        }],
+        transaction
+      });
 
-    if (!progress) {
-      return res.status(404).json({ error: 'Campaign progress not found' });
-    }
+      if (!progress) {
+        await transaction.rollback();
+        return res.status(404).json({ error: 'Campaign progress not found' });
+      }
 
-    // Обновляем прогресс
-    const wasCompleted = progress.completed;
-    progress.completed = true;
-    
-    if (stars > progress.stars) {
-      progress.stars = stars;
-    }
-    
-    if (score > progress.bestScore) {
-      progress.bestScore = score;
-    }
-    
-    progress.completedAt = new Date();
-    await progress.save();
-
-    // Награждаем пользователя только если уровень завершен впервые
-    let rewards = { gold: 0, experience: 0 };
-    const user = await User.findByPk(userId);
-    const campaignLevel = progress.CampaignLevel;
-    
-    if (!wasCompleted) {
-      user.gold += campaignLevel.goldReward;
-      user.experience += campaignLevel.expReward;
-      rewards = {
-        gold: campaignLevel.goldReward,
-        experience: campaignLevel.expReward
-      };
+      // Обновляем прогресс
+      const wasCompleted = progress.completed;
+      progress.completed = true;
       
+      if (stars > progress.stars) {
+        progress.stars = stars;
+      }
+      
+      if (score > progress.bestScore) {
+        progress.bestScore = score;
+      }
+      
+      progress.completedAt = new Date();
+      await progress.save({ transaction });
+
+      // Награждаем пользователя
+      let rewards = { gold: 0, experience: 0, items: [] };
+      const user = await User.findByPk(userId, { transaction });
+      const campaignLevel = progress.CampaignLevel;
+      
+      if (!wasCompleted) {
+        // Базовые награды
+        rewards.gold = campaignLevel.goldReward || 0;
+        rewards.experience = campaignLevel.expReward || 0;
+        
+        user.gold += rewards.gold;
+        user.experience += rewards.experience;
+        
+        // Генерируем случайные предметы из itemRewards уровня
+        if (campaignLevel.itemRewards && Array.isArray(campaignLevel.itemRewards)) {
+          for (const reward of campaignLevel.itemRewards) {
+            const roll = Math.random();
+            if (roll <= (reward.chance || 0.5)) {
+              const item = await Item.findByPk(reward.itemId, { transaction });
+              if (item) {
+                rewards.items.push({
+                  itemId: reward.itemId,
+                  quantity: reward.quantity || 1,
+                  name: item.name,
+                  color: item.color,
+                  imageUrl: item.imageUrl,
+                  description: item.description
+                });
+                
+                // Добавляем предмет в инвентарь
+                await addItemToInventoryDirect(userId, reward.itemId, reward.quantity || 1, transaction);
+              }
+            }
+          }
+        }
+      }
+
+      // Выдаем случайный серый предмет после каждого боя
+      const randomGrayItem = await getRandomGrayItem();
+      if (randomGrayItem) {
+        rewards.items.push({
+          itemId: randomGrayItem.id,
+          quantity: 1,
+          name: randomGrayItem.name,
+          color: randomGrayItem.color,
+          imageUrl: randomGrayItem.imageUrl,
+          description: randomGrayItem.description
+        });
+        
+        await addItemToInventoryDirect(userId, randomGrayItem.id, 1, transaction);
+        console.log(`🎁 Выдан случайный серый предмет: ${randomGrayItem.name}`);
+      }
+
       // Проверяем повышение уровня
       const expForNextLevel = user.level * 100;
       if (user.experience >= expForNextLevel) {
         user.level += 1;
         user.experience -= expForNextLevel;
+        console.log(`🎉 Пользователь ${userId} повысил уровень до ${user.level}`);
       }
       
-      await user.save();
-    }
+      await user.save({ transaction });
 
-    res.json({
-      success: true,
-      progress: {
-        completed: progress.completed,
-        stars: progress.stars,
-        bestScore: progress.bestScore,
-        attempts: progress.attempts,
-        completedAt: progress.completedAt
-      },
-      rewards: rewards,
-      user: {
-        gold: user.gold,
-        experience: user.experience,
-        level: user.level,
-        energy: user.energy
-      },
-      levelUp: user.experience === 0
-    });
+      await transaction.commit();
+
+      // Получаем обновленные данные пользователя
+      const updatedUser = await User.findByPk(userId);
+      
+      res.json({
+        success: true,
+        progress: {
+          completed: progress.completed,
+          stars: progress.stars,
+          bestScore: progress.bestScore,
+          attempts: progress.attempts,
+          completedAt: progress.completedAt
+        },
+        rewards: rewards,
+        user: {
+          id: updatedUser.id,
+          gold: updatedUser.gold,
+          experience: updatedUser.experience,
+          level: updatedUser.level,
+          energy: updatedUser.energy
+        },
+        levelUp: user.experience === 0 && !wasCompleted
+      });
+
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
 
   } catch (error) {
     console.error('❌ Ошибка завершения уровня кампании:', error);
     res.status(500).json({ error: error.message });
+  }
+};
+
+// Вспомогательная функция для добавления предмета в инвентарь
+const addItemToInventoryDirect = async (userId, itemId, quantity, transaction) => {
+  try {
+    const existingItem = await Inventory.findOne({
+      where: { userId, itemId },
+      transaction
+    });
+
+    const item = await Item.findByPk(itemId, { transaction });
+    
+    if (!item) {
+      throw new Error('Предмет не найден');
+    }
+
+    if (existingItem) {
+      if (existingItem.quantity + quantity <= item.maxStack) {
+        await existingItem.increment('quantity', { by: quantity, transaction });
+      } else {
+        existingItem.quantity = item.maxStack;
+        await existingItem.save({ transaction });
+      }
+    } else {
+      await Inventory.create({
+        userId,
+        itemId,
+        quantity
+      }, { transaction });
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('❌ Ошибка добавления предмета:', error);
+    throw error;
   }
 };
 
@@ -347,5 +454,5 @@ module.exports = {
   getCampaignLevels,
   startCampaignLevel,
   getCampaignProgress,
-  claimCampaignReward
+  claimCampaignReward,
 };

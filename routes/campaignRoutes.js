@@ -6,7 +6,7 @@ const {
   startCampaignLevel,
   getCampaignProgress,
   claimCampaignReward,
-  //getCampaignLevels claimCampaignReward
+  getUserInventory
 } = require('../controllers/campaignController');
 
 // Кампании и уровни

@@ -5,6 +5,10 @@
    "main": "server.js",
    "scripts": {
       "start": "node server.js",
+      "db:drop": "npx sequelize-cli db:drop",
+      "db:create": "npx sequelize-cli db:create",
+      "db:migrate": "npx sequelize-cli db:migrate",
+      "db:seed:all": "npx sequelize-cli db:seed:all",
       "seed": "npx sequelize-cli db:seed:all",
       "seed:undo": "npx sequelize-cli db:seed:undo:all"
    },
