@@ -25,9 +25,7 @@ module.exports = {
       { name: 'bespoleznyi_nabor', type: 'material', color: 'gray', requiredRank: 1, dropChance: 0.35, energyCost: 3, description: 'bespoleznyi_nabor' },
       { name: 'klayp', type: 'material', color: 'gray', requiredRank: 1, dropChance: 0.3, energyCost: 4, description: 'klayp' },
       { name: 'brakovannyi_gvozd', type: 'material', color: 'gray', requiredRank: 1, dropChance: 0.4, energyCost: 5, description: 'brakovannyi_gvozd' },
-      { name: 'Смола', type: 'material', color: 'gray', requiredRank: 1, dropChance: 0.25, energyCost: 6, description: 'Липкая смола' },
       { name: 'tsvetok_s_kladbist4a', type: 'material', color: 'gray', requiredRank: 1, dropChance: 0.35, energyCost: 4, description: 'tsvetok_s_kladbist4a' },
-      { name: 'Уголь', type: 'material', color: 'gray', requiredRank: 1, dropChance: 0.4, energyCost: 3, description: 'Кусок угля' },
       { name: 'strannoe_ebalo', type: 'material', color: 'gray', requiredRank: 1, dropChance: 0.5, energyCost: 2, description: 'strannoe_ebalo' },
       { name: 'nevedomaya_zap4ast', type: 'material', color: 'gray', requiredRank: 1, dropChance: 0.45, energyCost: 3, description: 'nevedomaya_zap4ast' }
     ];
@@ -71,7 +69,7 @@ module.exports = {
         statBonus: JSON.stringify(itemData.statBonus || {}),
         dropChance: itemData.dropChance,
         energyCost: itemData.energyCost,
-        imageUrl: `/images/items/${color}/${fileName}.png`,
+        imageUrl: `src/images/items/${color}/${fileName}.png`,
         description: itemData.description,
         isCraftable: itemData.type === 'composite' || itemData.type === 'upgrade',
         compositionLevel: color === 'gray' ? 1 : color === 'green' ? 2 : color === 'blue' ? 3 : color === 'orange' ? 4 : 5,

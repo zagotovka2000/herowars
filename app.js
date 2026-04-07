@@ -4,7 +4,7 @@ require('dotenv').config();
 const path = require('path');
 const app = express();
 
-// Middleware - УБРАЛИ ДУБЛИРОВАНИЕ CORS
+
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true
@@ -26,6 +26,7 @@ app.use('/api/daily-rewards', require('./routes/dailyRewardRoutes'));
 app.use('/api/expeditions', require('./routes/expeditionRoutes'));
 app.use('/api/free-chest', require('./routes/freeChestRoutes'));
 app.use('/api/inventory', require('./routes/inventoryRoutes'));
+app.use('/api/bots', require('./routes/botRoutes'));
 
 // Базовая проверка работы
 app.get('/health', (req, res) => {
@@ -46,7 +47,8 @@ app.get('/', (req, res) => {
       game: '/api/game',
       getUser: '/api/game/user/:userId',
       startCampaign: '/api/game/campaign/start',
-      startExpedition: '/api/game/expedition/start'
+      startExpedition: '/api/game/expedition/start',
+      craft: '/api/craft'
     }
   });
 });

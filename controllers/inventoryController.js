@@ -121,9 +121,58 @@ const getRandomGrayItem = async () => {
     return null;
   }
 };
-
+const grantRandomItemAfterBattle = async (userId) => {
+   try {
+     const randomItem = await getRandomGrayItem();
+     if (!randomItem) {
+       throw new Error('Не удалось получить случайный предмет');
+     }
+ 
+     const transaction = await sequelize.transaction();
+     
+     try {
+       // Проверяем, есть ли уже такой предмет у пользователя
+       const existingItem = await Inventory.findOne({
+         where: { userId, itemId: randomItem.id },
+         transaction
+       });
+ 
+       if (existingItem) {
+         // Проверяем максимальный стак
+         if (existingItem.quantity < randomItem.maxStack) {
+           await existingItem.increment('quantity', { by: 1, transaction });
+         } else {
+           // Достигнут максимальный стак - ничего не делаем
+           console.warn(`⚠️ Достигнут максимальный стак для предмета: ${randomItem.name}`);
+         }
+       } else {
+         await Inventory.create({
+           userId,
+           itemId: randomItem.id,
+           quantity: 1
+         }, { transaction });
+       }
+ 
+       await transaction.commit();
+       
+       return {
+         success: true,
+         item: randomItem,
+         message: `Получен предмет: ${randomItem.name}`
+       };
+ 
+     } catch (error) {
+       await transaction.rollback();
+       throw error;
+     }
+   } catch (error) {
+     console.error('Ошибка выдачи предмета после боя:', error);
+     throw error;
+   }
+ };
 module.exports = {
   getUserInventory,
   addItemToInventory,
   getRandomGrayItem,
+  grantRandomItemAfterBattle
 };

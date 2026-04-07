@@ -1,5 +1,5 @@
 {
-   "name": "herowarsbotdb",
+   "name": "",
    "version": "1.0.0",
    "description": "Telegram bot for herowarsbot",
    "main": "server.js",
