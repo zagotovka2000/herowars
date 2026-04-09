@@ -8,20 +8,14 @@ module.exports = {
     host: process.env.DB_HOST || '127.0.0.1',
     port: process.env.DB_PORT || 5432,
     dialect: 'postgres',
-    logging: false,
+    logging: false
   },
   production: {
-    use_env_variable: 'DATABASE_URL_UNPOOLED', 
+    use_env_variable: 'DATABASE_URL_UNPOOLED',
     dialect: 'postgres',
     logging: false,
     dialectOptions: {
-      ssl: {
-        require: true,
-        rejectUnauthorized: false,
-      },
-    },
-  },
+      ssl: { require: true, rejectUnauthorized: false }
+    }
+  }
 };
-
-
-
