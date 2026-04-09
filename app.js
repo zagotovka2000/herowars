@@ -16,7 +16,9 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/api/stronghold', require('./routes/strongholdRoutes'));
 
 
-
+app.get('/api/health', (req, res) => {
+   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+ });
 
 
 module.exports = app;

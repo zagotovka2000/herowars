@@ -1,8 +1,8 @@
 {
-   "name": "",
+   "name": "stronghold",
    "version": "1.0.0",
    "description": "Telegram bot for herowarsbot",
-   "main": "server.js",
+   "main": "app.js",
    "scripts": {
       "start": "node server.js",
       "db:drop": "npx sequelize-cli db:drop",
@@ -10,7 +10,9 @@
       "db:migrate": "npx sequelize-cli db:migrate",
       "db:seed:all": "npx sequelize-cli db:seed:all",
       "seed": "npx sequelize-cli db:seed:all",
-      "seed:undo": "npx sequelize-cli db:seed:undo:all"
+      "seed:undo": "npx sequelize-cli db:seed:undo:all",
+      "vercel-build": "echo 'Build step - migrations should be run manually'"
+
    },
    "dependencies": {
       "cors": "^2.8.5",

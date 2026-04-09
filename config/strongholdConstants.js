@@ -63,3 +63,24 @@ module.exports = {
   SLOTS_PER_FORT,
   emptySlot,
 };
+
+
+
+/* config.json
+{
+   "development": {
+    "use_env_variable": "DATABASE_URL",
+    "dialect": "postgres"
+   },
+   "production":{
+    "use_env_variable": "DATABASE_URL",
+    "dialect": "postgres",
+    "dialectOptions": {
+      "ssl": {
+        "require": true,
+        "rejectUnauthorized": false
+      }
+    }
+  }
+ } */
+ 
