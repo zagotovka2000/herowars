@@ -2,7 +2,7 @@ require('dotenv').config();
 const app = require('./app'); // Импорт Express приложения
 const db = require('./db/models'); // Импорт моделей базы данных
 
-const PORT = process.env.PORT || 3000; // Порт из env или 3000 по умолчанию
+const PORT = process.env.PORT || 4000; 
 
 // Функция для graceful shutdown (убрали дублирование)
 const gracefulShutdown = async (signal) => {
@@ -39,7 +39,6 @@ async function startServer() {
       
       // Дополнительная информация для разработки
       if (process.env.NODE_ENV !== 'production') {
-        console.log(`📊 Проверка здоровья: http://localhost:${PORT}/health`);
         console.log(`🎯 Game API: http://localhost:${PORT}/api/game`);
         console.log(`🏠 Главная страница: http://localhost:${PORT}/`);
       }

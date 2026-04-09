@@ -1,5 +1,4 @@
-require('dotenv').config();
-'use strict';
+require('dotenv').config();  // ← добавлено
 
 const fs = require('fs');
 const path = require('path');
