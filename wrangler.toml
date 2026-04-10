@@ -1,7 +1,0 @@
-name = "herowars-minimal"
-main = "index.js"
-compatibility_date = "2025-01-01"
-
-# (опционально) можно указать, в каком регионе запускать Worker
-# [env.production]
-# routes = ["your-domain.com/*"]

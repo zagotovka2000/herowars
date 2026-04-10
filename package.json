@@ -3,9 +3,12 @@
    "version": "1.0.0",
    "main": "index.js",
    "scripts": {
-     "deploy": "wrangler deploy"
+      "deploy": "wrangler deploy"
    },
    "engines": {
-     "node": ">=16"
+      "node": ">=16"
+   },
+   "dependencies": {
+      "@vercel/blob": "^2.3.3"
    }
- }
+}
