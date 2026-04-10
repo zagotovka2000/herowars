@@ -1,24 +1,23 @@
 const express = require('express');
 const cors = require('cors');
-require('dotenv').config();
-const path = require('path');
 const app = express();
 
-
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true
-}));
+app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
 
+// Главный тестовый эндпоинт
+app.get('/api/stronghold/test', (req, res) => {
+  res.json({ status: 'ok', message: 'Server works!' });
+});
 
-app.use('/api/stronghold', require('./routes/strongholdRoutes'));
+// Заглушка для /defenses – без базы данных
+app.get('/api/stronghold/defenses', (req, res) => {
+  res.json([]);
+});
 
-
-app.get('/api/health', (req, res) => {
-   res.json({ status: 'ok', timestamp: new Date().toISOString() });
- });
-
+// Любой другой запрос /api/stronghold/*
+app.all('/api/stronghold/*', (req, res) => {
+  res.status(404).json({ error: 'Not found' });
+});
 
 module.exports = app;

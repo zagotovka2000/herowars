@@ -1,24 +1,8 @@
-const PATRON_LIST = ['Акс', 'Аль', 'Век', 'Каи', 'Мар', 'Мер', 'Оли', 'Хор', 'Фен', 'Бис'];
+// controllers/strongholdController.js
+const { neon } = require('@neondatabase/serverless');
 
-const ALL_HEROES = [
-   'Исм', 'К\'А','Кей','Лир','Три','Цин','Чер','Эль','Ясм',
-   'Ара', 'Йор','Лиэ','Пол','ТЗв','Фоб',
-   'Айз','Альванор','Ами','Анд','Бир','Крн','Мор','Неб','Себ','Фаф','Фла',
-   'Баб','Гус','Дже','Дор','Мрк','Тея','Эйд',
-   'Авр','Аст','Гал','Зир','Крв','Лют','Май','Муш','Руф','Тес','Чаб','Эле','Юли',
-   'Арт','Дан','Джи','Джу','Кир','ЛаК','Лук','Сор','Фок',
-   'Авг','Айр','Без','Кай','Кас','Кри','Лар','Лил','Мод','Ори','Пеп','Сат','Сел','Суд','Фол','Хай','Гел',
-];
-const HEROES_LIST = ALL_HEROES.filter(hero => !PATRON_LIST.includes(hero));
-
-const TITANS_LIST = [
-  'Сол', 'Ияр', 'Риг', 'Амо', 'Тен', 'Бру', 'Мор', 'Кер', 'Сиг', 'Тид', 'Нов', 'Маи', 'Гип',
-  'Ара', 'Мол', 'Аше', 'Игн', 'Вул', 'Эде', 'Анг', 'Ава', 'Сил', 'Вер'
-];
-
-// ---------- ПОЛНЫЙ СПИСОК УКРЕПЛЕНИЙ (20 штук, как на клиенте) ----------
+// Встроенные определения FORTS и emptySlot (уберите импорт из strongholdConstants)
 const FORTS = [
-  // Титанские (9)
   { name: 'Мост', type: 'titans', bonus: 'накопление энергии быстрее на ', slots: 6 },
   { name: 'Врата Природы', type: 'titans', bonus: 'снижает урон на ', slots: 4 },
   { name: 'Бастион Льда', type: 'titans', bonus: 'накопление энергии быстрее на ', slots: 4 },
@@ -28,7 +12,6 @@ const FORTS = [
   { name: 'Источник Стихий', type: 'titans', bonus: 'увеличивает защиту от магии на ', slots: 4 },
   { name: 'Алтарь Жизни', type: 'titans', bonus: 'увеличивает лечение на ', slots: 5 },
   { name: 'Призма Эфира', type: 'titans', bonus: 'увеличивает броню на ', slots: 5 },
-  // Геройские (11)
   { name: 'Казармы', type: 'heroes', bonus: 'увеличивает здоровье на ', slots: 3 },
   { name: 'Академия Магов', type: 'heroes', bonus: 'увеличивает магический урон на ', slots: 3 },
   { name: 'Маяк', type: 'heroes', bonus: 'увеличена скорость перезарядки умений на ', slots: 5 },
@@ -42,12 +25,9 @@ const FORTS = [
   { name: 'Ратуша', type: 'heroes', bonus: 'увеличивает лечение на ', slots: 5 }
 ];
 
-const SLOTS_PER_FORT = FORTS.map(f => f.slots);
-
-// Пустой слот (универсальный)
 const emptySlot = {
   playerName: '',
-  type: 'heroes', // временно, при сохранении будет заменён на правильный тип укрепления
+  type: 'heroes',
   lineup: {
     pet: null,
     heroes: [null, null, null, null, null],
@@ -55,32 +35,46 @@ const emptySlot = {
   }
 };
 
-module.exports = {
-  PATRON_LIST,
-  HEROES_LIST,
-  TITANS_LIST,
-  FORTS,
-  SLOTS_PER_FORT,
-  emptySlot,
+/* const sql = neon(process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL); */
+const sql = null;
+const getGlobalDefenses = async (req, res) => {
+   if (!sql) {
+      return res.status(500).json({ error: 'DB not configured' });
+    }
+  try {
+    const result = await sql`SELECT data FROM "GlobalStrongholds" WHERE id = 1`;
+    if (result.length === 0) {
+      const emptyData = FORTS.map(fort => Array(fort.slots).fill(JSON.parse(JSON.stringify(emptySlot))));
+      return res.json(emptyData);
+    }
+    res.json(result[0].data);
+  } catch (error) {
+    console.error('Ошибка получения защит:', error);
+    res.status(500).json({ error: error.message });
+  }
 };
 
-
-
-/* config.json
-{
-   "development": {
-    "use_env_variable": "DATABASE_URL",
-    "dialect": "postgres"
-   },
-   "production":{
-    "use_env_variable": "DATABASE_URL",
-    "dialect": "postgres",
-    "dialectOptions": {
-      "ssl": {
-        "require": true,
-        "rejectUnauthorized": false
-      }
+const saveGlobalDefenses = async (req, res) => {
+   if (!sql) {
+      return res.status(500).json({ error: 'DB not configured' });
     }
+  try {
+    const newData = req.body;
+    if (!Array.isArray(newData) || newData.length === 0) {
+      return res.status(400).json({ error: 'Неверный формат данных' });
+    }
+    await sql`
+      INSERT INTO "GlobalStrongholds" (id, data, "createdAt", "updatedAt")
+      VALUES (1, ${JSON.stringify(newData)}, NOW(), NOW())
+      ON CONFLICT (id) DO UPDATE SET
+        data = EXCLUDED.data,
+        "updatedAt" = NOW()
+    `;
+    res.json({ message: 'Конфигурация сохранена' });
+  } catch (error) {
+    console.error('Ошибка сохранения:', error);
+    res.status(500).json({ error: error.message });
   }
- } */
+};
  
+module.exports = { getGlobalDefenses, saveGlobalDefenses };
